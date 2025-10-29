@@ -1,4 +1,17 @@
-// Register and Function-based Virtual Machine
+/*
+CIR - Cross-platform Runtime/VM
+A register-based virtual machine (VM) that executes Programs.
+
+Program:
+    - Contains all functions and its own state (currently only the current function but possibly will grow in future).
+
+Function:
+    - Contains a sequence of operations (Ops) and its own state (locals and current operation index).
+
+Op:
+    - A single operation executed within a Function, containing its type and arguments.
+*/
+
 #pragma once
 #include <array>
 #include <cstdint>
@@ -28,14 +41,14 @@ class Op {
 class Function {
     std::vector<Op> ops{};
     std::unordered_map<std::string, Word> locals{};
-    Config::DI_TYPE oc{}; // current operation
+    Config::DI_TYPE co{}; // current operation
 };
 
 class Program {
 public: // fuck this shit let them all be public
     std::unordered_map<std::string, Function> functions{};
     struct {
-        std::string cf{}; // first i wanted only to store the index of current function but since C++ STL is shit i cant get and use it so we must store std::string
+        std::string cf{}; // name of the current function
     } state;
 };
 
@@ -44,6 +57,7 @@ class CIR {
     std::array<Word, Config::REGISTER_COUNT> registers{};
     std::stack<Word> stack{};
 
+    // NOTE: owned memory
     Program program;
 
 public:
@@ -63,19 +77,20 @@ public:
     Word& get(uint16_t i) { return registers[i]; }
 
     void execute_op(Function& fn, Op op) {
-
+        // TODO: implement
     }
 
     void execute_function(const std::string& name) {
-
+        // TODO: implement
     }
 
     void execute_program() {
-
+        // TODO: implement
     }
 
     // NOTE: takes ownership! wanna get access to Program? use `get_program` it gives you a reference to it
     void load_program(Program p) { program = std::move(p); }
+    // returns read-write reference to program
     Program& get_program() { return program; }
 
 };
