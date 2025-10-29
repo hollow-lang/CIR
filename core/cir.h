@@ -45,7 +45,7 @@ class Function {
 };
 
 class Program {
-public: // fuck this shit let them all be public
+public: // fuck this shit let them, all be public
     std::unordered_map<std::string, Function> functions{};
     struct {
         std::string cf{}; // name of the current function
