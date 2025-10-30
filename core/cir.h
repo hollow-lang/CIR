@@ -12,8 +12,10 @@ Op:
     - A single operation executed within a Function, containing its type and arguments.
 */
 
+// TODO: complete design something is 100% not ready
 #pragma once
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <stack>
 #include <string>
@@ -33,12 +35,12 @@ enum class OpType : uint8_t {
     // TODO: more instructions, locals
 };
 
-class Op {
+struct Op {
     OpType type{};
     std::array<Word, Config::OpArgCount> args{};
 };
 
-class Function {
+struct Function {
     std::vector<Op> ops{};
     std::unordered_map<std::string, Word> locals{};
     Config::DI_TYPE co{}; // current operation
@@ -49,6 +51,7 @@ public: // fuck this shit let them, all be public
     std::unordered_map<std::string, Function> functions{};
     struct {
         std::string cf{}; // name of the current function
+        bool running = true;
     } state;
 };
 
@@ -77,20 +80,56 @@ public:
     Word& get(uint16_t i) { return registers[i]; }
 
     void execute_op(Function& fn, Op op) {
-        // TODO: implement
+        // TODO: change atleast to jump table
+        switch (op.type) {
+            case OpType::Mov: {
+                assert(0 && "TODO implement");
+            } break;
+            case OpType::Push: {
+                assert(0 && "TODO implement");
+            } break;
+                assert(0 && "TODO implement");
+            case OpType::Pop: {
+                assert(0 && "TODO implement");
+            } break;
+
+            default: {
+                assert(0 && "Invalid Op");
+            }
+        }
+
     }
 
     void execute_function(const std::string& name) {
-        // TODO: implement
+        if (!program.functions.contains(name)) {
+            assert(0 && "Function not found");
+        }
+        Function f = program.functions[name];
+
+        for (auto& op : f.ops) {
+            if (!program.state.running) {
+                break;
+            }
+
+            execute_op(f, op);
+        }
     }
 
+    // Executes execute_function using the default entry point "main"
     void execute_program() {
-        // TODO: implement
+        execute_function("main");
+    }
+
+    std::vector<uint8_t> to_bytecode() {
+        assert(0 && "TODO");
+    }
+
+    void from_bytecode(std::vector<uint8_t> bytes) {
+        assert(0 && "TODO");
     }
 
     // NOTE: takes ownership! wanna get access to Program? use `get_program` it gives you a reference to it
     void load_program(Program p) { program = std::move(p); }
     // returns read-write reference to program
     Program& get_program() { return program; }
-
 };
