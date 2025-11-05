@@ -1,0 +1,1 @@
+/home/runner/work/CIR/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++  -O3 -march=native -flto -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/CIR.dir/link.d CMakeFiles/CIR.dir/main.cpp.o -o CIR

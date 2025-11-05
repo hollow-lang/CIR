@@ -142,10 +142,14 @@ public:
                 registers[op.args[0]] = ~registers[op.args[0]];
                 break;
             case OpType::Shl:
-                registers[op.args[0]] <<= registers[op.args[1]];
+                if (registers[op.args[1]] < 64) {
+                    registers[op.args[0]] <<= registers[op.args[1]];
+                }
                 break;
             case OpType::Shr:
-                registers[op.args[0]] >>= registers[op.args[1]];
+                if (registers[op.args[1]] < 64) {
+                    registers[op.args[0]] >>= registers[op.args[1]];
+                }
                 break;
             case OpType::Eq:
                 registers[op.args[0]] = (registers[op.args[0]] == registers[op.args[1]]) ? 1 : 0;
@@ -181,13 +185,14 @@ public:
                 }
                 break;
             case OpType::Call:
-                call_stack.push_back(fn.co);
+                call_stack.push_back(fn.co + 1);
                 fn.co = op.args[0];
                 return;
             case OpType::Ret:
                 if (!call_stack.empty()) {
                     fn.co = call_stack.back();
                     call_stack.pop_back();
+                    return;
                 }
                 break;
             case OpType::Load:
