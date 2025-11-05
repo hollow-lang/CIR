@@ -1,17 +1,3 @@
-/*
-CIR - Cross-platform Runtime/VM
-A register-based virtual machine (VM) that executes Programs.
-
-Program:
-    - Contains all functions and its own state (currently only the current function but possibly will grow in future).
-
-Function:
-    - Contains a sequence of operations (Ops) and its own state (locals and current operation index).
-
-Op:
-    - A single operation executed within a Function, containing its type and arguments.
-*/
-
 #pragma once
 #include <array>
 #include <cstdint>
@@ -20,77 +6,225 @@ Op:
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 #include "config.h"
 
-// TODO: change (temporary solution)
 using Word = uint64_t;
 
 enum class OpType : uint8_t {
+    Nop,
     Mov,
     Push,
     Pop,
-    // TODO: more instructions, locals
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    And,
+    Or,
+    Xor,
+    Not,
+    Shl,
+    Shr,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Jmp,
+    Jz,
+    Jnz,
+    Call,
+    Ret,
+    Load,
+    Store,
+    Inc,
+    Dec,
 };
 
 class Op {
+public:
     OpType type{};
     std::array<Word, Config::OpArgCount> args{};
+    
+    constexpr Op() noexcept = default;
+    constexpr Op(OpType t, Word a0 = 0, Word a1 = 0) noexcept : type(t), args{a0, a1} {}
 };
 
 class Function {
+public:
     std::vector<Op> ops{};
     std::unordered_map<std::string, Word> locals{};
-    Config::DI_TYPE co{}; // current operation
+    Config::DI_TYPE co{};
 };
 
 class Program {
-public: // fuck this shit let them, all be public
+public:
     std::unordered_map<std::string, Function> functions{};
     struct {
-        std::string cf{}; // name of the current function
+        std::string cf{};
     } state;
 };
 
 class CIR {
-    // TODO: decide should be moved to Program or not
     std::array<Word, Config::REGISTER_COUNT> registers{};
-    std::stack<Word> stack{};
-
-    // NOTE: owned memory
+    std::vector<Word> stack{};
+    size_t stack_size{};
     Program program;
+    std::vector<Config::DI_TYPE> call_stack{};
 
 public:
-    Word pop() {
-        Word top = stack.top(); // Dereferences reference gets copy
-        stack.pop();
-        return top; // returns copy
+    CIR() { 
+        stack.reserve(Config::STACK_SIZE);
+        registers.fill(0);
     }
 
-    void push(Word& value) { stack.push(value); }
-
-    void move(Word w, uint16_t i) {
-        registers[i] = w; // assignes registers + (i * sizeof(Word)) the value w
+    inline Word pop() {
+        if (stack_size == 0) throw std::runtime_error("stack underflow");
+        return stack[--stack_size];
     }
 
-    // returns a read-write reference to a register
-    Word& get(uint16_t i) { return registers[i]; }
+    inline void push(Word value) {
+        if (stack_size >= Config::STACK_SIZE) throw std::runtime_error("stack overflow");
+        if (stack_size >= stack.size()) stack.resize(stack_size + 1);
+        stack[stack_size++] = value;
+    }
 
-    void execute_op(Function& fn, Op op) {
-        // TODO: implement
+    inline void move(Word w, uint16_t i) {
+        registers[i] = w;
+    }
+
+    inline Word& get(uint16_t i) { return registers[i]; }
+
+    void execute_op(Function& fn, Op& op) {
+        switch(op.type) {
+            case OpType::Nop:
+                break;
+            case OpType::Mov:
+                registers[op.args[0]] = registers[op.args[1]];
+                break;
+            case OpType::Push:
+                push(registers[op.args[0]]);
+                break;
+            case OpType::Pop:
+                registers[op.args[0]] = pop();
+                break;
+            case OpType::Add:
+                registers[op.args[0]] += registers[op.args[1]];
+                break;
+            case OpType::Sub:
+                registers[op.args[0]] -= registers[op.args[1]];
+                break;
+            case OpType::Mul:
+                registers[op.args[0]] *= registers[op.args[1]];
+                break;
+            case OpType::Div:
+                if (registers[op.args[1]] == 0) throw std::runtime_error("division by zero");
+                registers[op.args[0]] /= registers[op.args[1]];
+                break;
+            case OpType::Mod:
+                if (registers[op.args[1]] == 0) throw std::runtime_error("modulo by zero");
+                registers[op.args[0]] %= registers[op.args[1]];
+                break;
+            case OpType::And:
+                registers[op.args[0]] &= registers[op.args[1]];
+                break;
+            case OpType::Or:
+                registers[op.args[0]] |= registers[op.args[1]];
+                break;
+            case OpType::Xor:
+                registers[op.args[0]] ^= registers[op.args[1]];
+                break;
+            case OpType::Not:
+                registers[op.args[0]] = ~registers[op.args[0]];
+                break;
+            case OpType::Shl:
+                registers[op.args[0]] <<= registers[op.args[1]];
+                break;
+            case OpType::Shr:
+                registers[op.args[0]] >>= registers[op.args[1]];
+                break;
+            case OpType::Eq:
+                registers[op.args[0]] = (registers[op.args[0]] == registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Ne:
+                registers[op.args[0]] = (registers[op.args[0]] != registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Lt:
+                registers[op.args[0]] = (registers[op.args[0]] < registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Le:
+                registers[op.args[0]] = (registers[op.args[0]] <= registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Gt:
+                registers[op.args[0]] = (registers[op.args[0]] > registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Ge:
+                registers[op.args[0]] = (registers[op.args[0]] >= registers[op.args[1]]) ? 1 : 0;
+                break;
+            case OpType::Jmp:
+                fn.co = op.args[0];
+                return;
+            case OpType::Jz:
+                if (registers[op.args[0]] == 0) {
+                    fn.co = op.args[1];
+                    return;
+                }
+                break;
+            case OpType::Jnz:
+                if (registers[op.args[0]] != 0) {
+                    fn.co = op.args[1];
+                    return;
+                }
+                break;
+            case OpType::Call:
+                call_stack.push_back(fn.co);
+                fn.co = op.args[0];
+                return;
+            case OpType::Ret:
+                if (!call_stack.empty()) {
+                    fn.co = call_stack.back();
+                    call_stack.pop_back();
+                }
+                break;
+            case OpType::Load:
+                registers[op.args[0]] = op.args[1];
+                break;
+            case OpType::Store:
+                fn.locals[std::to_string(op.args[0])] = registers[op.args[1]];
+                break;
+            case OpType::Inc:
+                registers[op.args[0]]++;
+                break;
+            case OpType::Dec:
+                registers[op.args[0]]--;
+                break;
+        }
+        fn.co++;
     }
 
     void execute_function(const std::string& name) {
-        // TODO: implement
+        auto it = program.functions.find(name);
+        if (it == program.functions.end()) throw std::runtime_error("function not found");
+        Function& fn = it->second;
+        fn.co = 0;
+        while (fn.co < fn.ops.size()) {
+            execute_op(fn, fn.ops[fn.co]);
+        }
     }
 
     void execute_program() {
-        // TODO: implement
+        if (program.state.cf.empty() && !program.functions.empty()) {
+            program.state.cf = program.functions.begin()->first;
+        }
+        if (!program.state.cf.empty()) {
+            execute_function(program.state.cf);
+        }
     }
 
-    // NOTE: takes ownership! wanna get access to Program? use `get_program` it gives you a reference to it
     void load_program(Program p) { program = std::move(p); }
-    // returns read-write reference to program
     Program& get_program() { return program; }
-
 };
