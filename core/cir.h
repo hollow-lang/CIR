@@ -1,3 +1,4 @@
+// TODO: implement externals
 #pragma once
 #include <array>
 #include <cassert>
@@ -207,7 +208,8 @@ enum class OpType : uint8_t {
     FDiv,
     FCmp,
     I2F,
-    F2I
+    F2I,
+    // TODO: instructions on locals
 };
 
 struct Op {
