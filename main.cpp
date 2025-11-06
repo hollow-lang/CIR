@@ -21,13 +21,24 @@ int main() {
 
     Program program;
     Function main;
-    Op ops[] = {
+    Function abc;
+    Op main_ops[] = {
+        {OpType::Call, {Word::from_string_owned("abc")}},
+        {OpType::Nop}
+    };
+    main.ops.append_range(main_ops);
+
+    Op abc_ops[] = {
         {OpType::Mov, {Word::from_int(10), Word::from_int(0)}},
         {OpType::Mov, {Word::from_int(10), Word::from_int(1)}},
         {OpType::Add, {Word::from_int(0), Word::from_int(1)}},
+        {OpType::PushReg, {Word::from_int(0)}},
+        {OpType::Ret, {}}
     };
-    main.ops.append_range(ops);
+    abc.ops.append_range(abc_ops);
+
     program.functions["main"] = main;
+    program.functions["abc"] = abc;
     cir.load_program(program);
 
     cir.execute_program();

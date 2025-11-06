@@ -20,8 +20,15 @@ enum class WordType : uint8_t {
     Null
 };
 
+enum class WordFlag : uint8_t {
+    None = 0,
+    String = 1 << 1,
+    OwnsMemory = 1 << 2,
+};
+
 struct Word {
     WordType type{WordType::Null};
+    uint8_t flags = 0;
 
     union {
         int64_t i;
@@ -30,7 +37,68 @@ struct Word {
         bool b;
     } data{};
 
-    Word() : type(WordType::Null) { data.i = 0; }
+    Word() { data.i = 0; }
+
+    Word(const Word &other) : type(other.type), flags(other.flags) {
+        if (other.has_flag(WordFlag::OwnsMemory) && other.has_flag(WordFlag::String) && other.data.p != nullptr) {
+            const char *src = static_cast<const char *>(other.data.p);
+            size_t len = std::strlen(src);
+            char *str_copy = new char[len + 1];
+            std::strcpy(str_copy, src);
+            data.p = str_copy;
+        } else {
+            data = other.data;
+        }
+    }
+
+    Word &operator=(const Word &other) {
+        if (this != &other) {
+            if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
+                delete[] static_cast<char *>(data.p);
+            }
+
+            type = other.type;
+            flags = other.flags;
+
+            if (other.has_flag(WordFlag::OwnsMemory) && other.has_flag(WordFlag::String) && other.data.p != nullptr) {
+                const char *src = static_cast<const char *>(other.data.p);
+                size_t len = std::strlen(src);
+                char *str_copy = new char[len + 1];
+                std::strcpy(str_copy, src);
+                data.p = str_copy;
+            } else {
+                data = other.data;
+            }
+        }
+        return *this;
+    }
+
+    Word(Word &&other) noexcept : type(other.type), flags(other.flags), data(other.data) {
+        other.flags = 0;
+        other.data.p = nullptr;
+    }
+
+    Word &operator=(Word &&other) noexcept {
+        if (this != &other) {
+            if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
+                delete[] static_cast<char *>(data.p);
+            }
+
+            type = other.type;
+            flags = other.flags;
+            data = other.data;
+
+            other.flags = 0;
+            other.data.p = nullptr;
+        }
+        return *this;
+    }
+
+    ~Word() {
+        if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
+            delete[] static_cast<char *>(data.p);
+        }
+    }
 
     static Word from_int(int64_t val) {
         Word w;
@@ -60,15 +128,50 @@ struct Word {
         return w;
     }
 
+    static Word from_string(const std::string &val) {
+        Word w;
+        w.type = WordType::Pointer;
+        w.set_flag(WordFlag::String);
+        w.data.p = const_cast<char *>(val.c_str());
+        return w;
+    }
+
+    static Word from_string_owned(const std::string &val) {
+        Word w;
+        w.type = WordType::Pointer;
+        w.set_flag(WordFlag::String);
+        w.set_flag(WordFlag::OwnsMemory);
+
+        char *str_copy = new char[val.size() + 1];
+        std::strcpy(str_copy, val.c_str());
+        w.data.p = str_copy;
+        return w;
+    }
+
+    static Word from_null() {
+        Word w;
+        w.type = WordType::Null;
+        return w;
+    }
+
+    void set_flag(WordFlag flag) {
+        flags |= static_cast<uint8_t>(flag);
+    }
+
+    [[nodiscard]] bool has_flag(WordFlag flag) const {
+        return (flags & static_cast<uint8_t>(flag)) != 0;
+    }
+
     [[nodiscard]] int64_t as_int() const { return data.i; }
     [[nodiscard]] double as_float() const { return data.f; }
-    [[nodiscard]] void* as_ptr() const { return data.p; }
+    [[nodiscard]] void *as_ptr() const { return data.p; }
     [[nodiscard]] bool as_bool() const { return data.b; }
 };
 
 enum class OpType : uint8_t {
     Mov,
-    Push,
+    Push, // Push value
+    PushReg, // push register
     Pop,
     Add,
     Sub,
@@ -85,14 +188,14 @@ enum class OpType : uint8_t {
     Jmp,
     Je,
     Jne,
-    Jg,     // TODO: implement
-    Jl,     // TODO: implement
-    Jge,    // TODO: implement
-    Jle,    // TODO: implement
-    Call,   // TODO: implement
-    Ret,    // TODO: implement
-    Load,   // TODO: implement
-    Store,  // TODO: implement
+    Jg, // TODO: implement
+    Jl, // TODO: implement
+    Jge, // TODO: implement
+    Jle, // TODO: implement
+    Call,
+    Ret,
+    Load, // TODO: Implement
+    Store, // TODO: Implement
     Halt,
     Nop,
     Inc,
@@ -118,6 +221,11 @@ struct Function {
     Config::DI_TYPE co{};
 };
 
+struct CallFrame {
+    std::string name{};
+    Config::DI_TYPE co{};
+};
+
 class Program {
 public:
     std::unordered_map<std::string, Function> functions{};
@@ -125,13 +233,13 @@ public:
     struct {
         std::string cf{};
         bool running = true;
+        std::vector<CallFrame> call_stack{};
     } state;
 };
 
 class CIR {
     std::array<Word, Config::REGISTER_COUNT> registers{};
     std::vector<Word> stack{};
-    std::vector<uint64_t> call_stack{};
     bool cmp_flag{false};
     Program program;
 
@@ -150,264 +258,238 @@ public:
         registers[i] = w;
     }
 
-    // get register
     Word &getr(uint16_t i) {
         return registers[i];
     }
 
-    // get stack
     Word &gets() {
         return stack.emplace_back();
     }
 
     void execute_op(Function &fn, Op op) {
+        Word &dest = getr(0);
         switch (op.type) {
-            // (value, target)
             case OpType::Mov: {
                 move(op.args[0], op.args[1].as_int());
-            }
-            break;
+            } break;
 
-            // (value)
             case OpType::Push: {
                 push(op.args[0]);
-            }
-            break;
+            } break;
 
-            // (target)
+            case OpType::PushReg: {
+                push(getr(op.args[0].as_int()));
+            } break;
+
             case OpType::Pop: {
                 Word &r = getr(op.args[0].as_int());
                 r = pop();
-            }
-            break;
+            } break;
 
-            // (r1, r2)
             case OpType::Add: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() + b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1, r2) = r1.val - r2.val
             case OpType::Sub: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() - b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 * r2)
             case OpType::Mul: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() * b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 / r2)
             case OpType::Div: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 if (b.as_int() == 0) {
                     throw std::runtime_error("Division by zero");
                 }
                 dest = Word::from_int(a.as_int() / b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 % r2)
             case OpType::Mod: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 if (b.as_int() == 0) {
                     throw std::runtime_error("Modulo by zero");
                 }
                 dest = Word::from_int(a.as_int() % b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 & r2)
             case OpType::And: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() & b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 | r2)
             case OpType::Or: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() | b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 ^ r2)
             case OpType::Xor: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() ^ b.as_int());
-            }
-            break;
+            } break;
 
-            // (~r1)
             case OpType::Not: {
                 Word &a = getr(op.args[0].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(~a.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 << r2)
             case OpType::Shl: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() << b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 >> r2)
             case OpType::Shr: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(a.as_int() >> b.as_int());
-            }
-            break;
+            } break;
 
-            // (r1 == r2)
             case OpType::Cmp: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 cmp_flag = (a.as_int() == b.as_int());
-            }
-            break;
+            } break;
 
-            // jump_addr(r1)
             case OpType::Jmp: {
                 fn.co = op.args[0].as_int();
-            }
-            break;
+            } break;
 
-            // jump_addr_if_equal(r1)
             case OpType::Je: {
                 if (cmp_flag) {
                     fn.co = op.args[0].as_int();
                 }
-            }
-            break;
+            } break;
 
-            // jump_addr_if_not_equal(r1)
             case OpType::Jne: {
                 if (!cmp_flag) {
                     fn.co = op.args[0].as_int();
                 }
-            }
-            break;
+            } break;
 
-            // (r1++)
             case OpType::Inc: {
                 Word &r = getr(op.args[0].as_int());
                 r = Word::from_int(r.as_int() + 1);
-            }
-            break;
+            } break;
 
-            // (r1--)
             case OpType::Dec: {
                 Word &r = getr(op.args[0].as_int());
                 r = Word::from_int(r.as_int() - 1);
-            }
-            break;
+            } break;
 
-            // (-r1)
             case OpType::Neg: {
                 Word &a = getr(op.args[0].as_int());
-                Word &dest = gets();
                 dest = Word::from_int(-a.as_int());
-            }
-            break;
+            } break;
 
-            // float(r1 + r2)
             case OpType::FAdd: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_float(a.as_float() + b.as_float());
-            }
-            break;
+            } break;
 
-            // float(r1 - r2)
             case OpType::FSub: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_float(a.as_float() - b.as_float());
-            }
-            break;
+            } break;
 
-            // float(r1 * r2)
             case OpType::FMul: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_float(a.as_float() * b.as_float());
-            }
-            break;
+            } break;
 
-            // float(r1 * r2)
             case OpType::FDiv: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
-                Word &dest = gets();
                 dest = Word::from_float(a.as_float() / b.as_float());
-            }
-            break;
+            } break;
 
-            // cast_f(r1) -> r1
             case OpType::I2F: {
                 Word &a = getr(op.args[0].as_int());
                 a = Word::from_float(static_cast<double>(a.as_int()));
-            }
-            break;
+            } break;
 
-            // cast_i(r1) -> r1
             case OpType::F2I: {
                 Word &a = getr(op.args[0].as_int());
                 a = Word::from_int(static_cast<int64_t>(a.as_float()));
-            }
-            break;
+            } break;
 
             case OpType::Halt: {
                 program.state.running = false;
-            }
-            break;
+            } break;
 
             case OpType::Nop: break;
+
+            case OpType::Call: {
+                CallFrame cf = {program.state.cf, fn.co + 1};
+                program.state.call_stack.push_back(cf);
+                program.state.cf = std::string((const char *) op.args[0].as_ptr());
+
+                if (!program.functions.contains(program.state.cf)) {
+                    throw std::runtime_error("Function not found: " + program.state.cf);
+                }
+                program.functions[program.state.cf].co = 0;
+            } return;
+
+            case OpType::Ret: {
+                if (program.state.call_stack.empty()) {
+                    program.state.running = false;
+                    return;
+                }
+
+                CallFrame cf = program.state.call_stack.back();
+                program.state.call_stack.pop_back();
+
+                program.state.cf = cf.name;
+                program.functions[program.state.cf].co = cf.co;
+            } return;
 
             default: assert(0 && "wtf, this dont should happen.");
         }
     }
 
     void execute_function(const std::string &name) {
+        program.state.cf = name;
+        program.state.running = true;
+
         if (!program.functions.contains(name)) {
             throw std::runtime_error("Function not found: " + name);
         }
-        Function &f = program.functions[name];
 
-        f.co = 0;
-        while (f.co < f.ops.size() && program.state.running) {
-            execute_op(f, f.ops[f.co]);
-            f.co++;
+        program.functions[name].co = 0;
+
+        while (program.state.running) {
+            Function &fn = program.functions[program.state.cf];
+
+            if (fn.co >= fn.ops.size()) {
+                if (program.state.call_stack.empty()) {
+                    program.state.running = false;
+                    break;
+                }
+
+                CallFrame cf = program.state.call_stack.back();
+                program.state.call_stack.pop_back();
+                program.state.cf = cf.name;
+                program.functions[program.state.cf].co = cf.co;
+                continue;
+            }
+
+            execute_op(fn, fn.ops[fn.co]);
+            fn.co++;
         }
     }
 
