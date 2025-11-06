@@ -26,7 +26,7 @@ struct Word {
     union {
         int64_t i;
         double f;
-        uint64_t p;
+        void *p;
         bool b;
     } data{};
 
@@ -46,7 +46,7 @@ struct Word {
         return w;
     }
 
-    static Word from_ptr(uint64_t val) {
+    static Word from_ptr(void *val) {
         Word w;
         w.type = WordType::Pointer;
         w.data.p = val;
@@ -60,10 +60,10 @@ struct Word {
         return w;
     }
 
-    int64_t as_int() const { return data.i; }
-    double as_float() const { return data.f; }
-    uint64_t as_ptr() const { return data.p; }
-    bool as_bool() const { return data.b; }
+    [[nodiscard]] int64_t as_int() const { return data.i; }
+    [[nodiscard]] double as_float() const { return data.f; }
+    [[nodiscard]] void* as_ptr() const { return data.p; }
+    [[nodiscard]] bool as_bool() const { return data.b; }
 };
 
 enum class OpType : uint8_t {
@@ -85,14 +85,14 @@ enum class OpType : uint8_t {
     Jmp,
     Je,
     Jne,
-    Jg,
-    Jl,
-    Jge,
-    Jle,
-    Call,
-    Ret,
-    Load,
-    Store,
+    Jg,     // TODO: implement
+    Jl,     // TODO: implement
+    Jge,    // TODO: implement
+    Jle,    // TODO: implement
+    Call,   // TODO: implement
+    Ret,    // TODO: implement
+    Load,   // TODO: implement
+    Store,  // TODO: implement
     Halt,
     Nop,
     Inc,
