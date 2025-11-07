@@ -24,6 +24,7 @@ int main() {
     Function abc;
     Op main_ops[] = {
         {OpType::Call, {Word::from_string_owned("abc")}},
+        {OpType::PushReg, {Word::from_int(0)}},
         {OpType::Nop}
     };
     main.ops.append_range(main_ops);
@@ -32,7 +33,6 @@ int main() {
         {OpType::Mov, {Word::from_int(10), Word::from_int(0)}},
         {OpType::Mov, {Word::from_int(10), Word::from_int(1)}},
         {OpType::Add, {Word::from_int(0), Word::from_int(1)}},
-        {OpType::PushReg, {Word::from_int(0)}},
         {OpType::Ret, {}}
     };
     abc.ops.append_range(abc_ops);

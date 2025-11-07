@@ -1,4 +1,4 @@
-// TODO: implement externals
+// TODO: implement dl loading from files
 #pragma once
 #include <array>
 #include <cassert>
@@ -12,6 +12,10 @@
 #include <stdexcept>
 
 #include "config.h"
+
+class CIR;
+
+using CIR_ExternFn = void (*)(CIR& vm);
 
 enum class WordType : uint8_t {
     Integer,
@@ -194,6 +198,7 @@ enum class OpType : uint8_t {
     Jge, // TODO: implement
     Jle, // TODO: implement
     Call,
+    CallExtern,
     Ret,
     Load, // TODO: Implement
     Store, // TODO: Implement
@@ -242,7 +247,11 @@ public:
 class CIR {
     std::array<Word, Config::REGISTER_COUNT> registers{};
     std::vector<Word> stack{};
+
+    std::unordered_map<std::string, CIR_ExternFn> extern_functions{};
+
     bool cmp_flag{false};
+
     Program program;
 
 public:
@@ -446,6 +455,26 @@ public:
                 }
                 program.functions[program.state.cf].co = 0;
             } return;
+
+            case OpType::CallExtern: {
+                if (op.args[0].type != WordType::Pointer) {
+                    throw std::runtime_error("CallExtern: first argument must be a pointer to function name");
+                }
+
+                const char* fn_name_cstr = static_cast<const char*>(op.args[0].as_ptr());
+                if (fn_name_cstr == nullptr) {
+                    throw std::runtime_error("CallExtern: null function name");
+                }
+
+                std::string fn_name(fn_name_cstr);
+
+                auto it = extern_functions.find(fn_name);
+                if (it == extern_functions.end()) {
+                    throw std::runtime_error("External function not found: " + fn_name);
+                }
+
+                it->second(*this);
+            } break;
 
             case OpType::Ret: {
                 if (program.state.call_stack.empty()) {
@@ -656,6 +685,10 @@ public:
 
     Program &get_program() {
         return program;
+    }
+
+    void set_extern_fn(std::string n, CIR_ExternFn f) {
+        extern_functions[n] = f;
     }
 
     std::vector<Word> &get_stack() {
