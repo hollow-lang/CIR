@@ -214,7 +214,8 @@ enum class OpType : uint8_t {
     FCmp,
     I2F,
     F2I,
-    // TODO: instructions on locals
+    LocalGet,
+    LocalSet,
 };
 
 struct Op {
@@ -550,9 +551,24 @@ public:
 
                 for (size_t i = 0; i < Config::OpArgCount; i++) {
                     bytes.push_back(static_cast<uint8_t>(op.args[i].type));
-                    bytes.insert(bytes.end(),
-                                 reinterpret_cast<const uint8_t *>(&op.args[i].data),
-                                 reinterpret_cast<const uint8_t *>(&op.args[i].data) + sizeof(op.args[i].data));
+                    bytes.push_back(op.args[i].flags);
+
+                    if (op.args[i].has_flag(WordFlag::String) && op.args[i].type == WordType::Pointer) {
+                        const char* str = static_cast<const char*>(op.args[i].data.p);
+                        uint32_t str_len = str ? std::strlen(str) : 0;
+
+                        bytes.insert(bytes.end(),
+                                    reinterpret_cast<uint8_t*>(&str_len),
+                                    reinterpret_cast<uint8_t*>(&str_len) + sizeof(str_len));
+
+                        if (str_len > 0) {
+                            bytes.insert(bytes.end(), str, str + str_len + 1);
+                        }
+                    } else {
+                        bytes.insert(bytes.end(),
+                                    reinterpret_cast<const uint8_t *>(&op.args[i].data),
+                                    reinterpret_cast<const uint8_t *>(&op.args[i].data) + sizeof(op.args[i].data));
+                    }
                 }
             }
 
@@ -567,9 +583,24 @@ public:
                 bytes.insert(bytes.end(), local_name.begin(), local_name.end());
 
                 bytes.push_back(static_cast<uint8_t>(local_val.type));
-                bytes.insert(bytes.end(),
-                             reinterpret_cast<const uint8_t *>(&local_val.data),
-                             reinterpret_cast<const uint8_t *>(&local_val.data) + sizeof(local_val.data));
+                bytes.push_back(local_val.flags);
+
+                if (local_val.has_flag(WordFlag::String) && local_val.type == WordType::Pointer) {
+                    const char* str = static_cast<const char*>(local_val.data.p);
+                    uint32_t str_len = str ? std::strlen(str) : 0;
+
+                    bytes.insert(bytes.end(),
+                                reinterpret_cast<uint8_t*>(&str_len),
+                                reinterpret_cast<uint8_t*>(&str_len) + sizeof(str_len));
+
+                    if (str_len > 0) {
+                        bytes.insert(bytes.end(), str, str + str_len + 1);
+                    }
+                } else {
+                    bytes.insert(bytes.end(),
+                                reinterpret_cast<const uint8_t *>(&local_val.data),
+                                reinterpret_cast<const uint8_t *>(&local_val.data) + sizeof(local_val.data));
+                }
             }
         }
 
@@ -623,13 +654,44 @@ public:
                 op.type = static_cast<OpType>(bytes[offset++]);
 
                 for (size_t i = 0; i < Config::OpArgCount; i++) {
-                    if (offset + 1 + sizeof(op.args[i].data) > bytes.size()) {
-                        throw std::runtime_error("Bytecode truncated: cannot read op argument");
+                    if (offset + 2 > bytes.size()) {
+                        throw std::runtime_error("Bytecode truncated: cannot read op argument type and flags");
                     }
 
                     op.args[i].type = static_cast<WordType>(bytes[offset++]);
-                    std::memcpy(&op.args[i].data, &bytes[offset], sizeof(op.args[i].data));
-                    offset += sizeof(op.args[i].data);
+                    op.args[i].flags = bytes[offset++];
+
+                    if (op.args[i].has_flag(WordFlag::String) && op.args[i].type == WordType::Pointer) {
+                        if (offset + sizeof(uint32_t) > bytes.size()) {
+                            throw std::runtime_error("Bytecode truncated: cannot read string length");
+                        }
+
+                        uint32_t str_len;
+                        std::memcpy(&str_len, &bytes[offset], sizeof(str_len));
+                        offset += sizeof(str_len);
+
+                        if (str_len > 0) {
+                            if (offset + str_len + 1 > bytes.size()) {
+                                throw std::runtime_error("Bytecode truncated: cannot read string data");
+                            }
+
+                            char* str_copy = new char[str_len + 1];
+                            std::memcpy(str_copy, &bytes[offset], str_len + 1);
+                            offset += str_len + 1;
+
+                            op.args[i].data.p = str_copy;
+                            op.args[i].set_flag(WordFlag::OwnsMemory);
+                        } else {
+                            op.args[i].data.p = nullptr;
+                        }
+                    } else {
+                        if (offset + sizeof(op.args[i].data) > bytes.size()) {
+                            throw std::runtime_error("Bytecode truncated: cannot read op argument data");
+                        }
+
+                        std::memcpy(&op.args[i].data, &bytes[offset], sizeof(op.args[i].data));
+                        offset += sizeof(op.args[i].data);
+                    }
                 }
 
                 func.ops.push_back(op);
@@ -659,18 +721,45 @@ public:
                 std::string local_name(bytes.begin() + offset, bytes.begin() + offset + local_name_len);
                 offset += local_name_len;
 
-                if (offset + 1 + sizeof(Word::data) > bytes.size()) {
-                    throw std::runtime_error(
-                        "Bytecode truncated: cannot read local value: need " +
-                        std::to_string(offset + 1 + sizeof(Word::data)) +
-                        " bytes but only have " + std::to_string(bytes.size())
-                    );
+                if (offset + 2 > bytes.size()) {
+                    throw std::runtime_error("Bytecode truncated: cannot read local value type and flags");
                 }
 
                 Word local_val;
                 local_val.type = static_cast<WordType>(bytes[offset++]);
-                std::memcpy(&local_val.data, &bytes[offset], sizeof(local_val.data));
-                offset += sizeof(local_val.data);
+                local_val.flags = bytes[offset++];
+
+                if (local_val.has_flag(WordFlag::String) && local_val.type == WordType::Pointer) {
+                    if (offset + sizeof(uint32_t) > bytes.size()) {
+                        throw std::runtime_error("Bytecode truncated: cannot read local string length");
+                    }
+
+                    uint32_t str_len;
+                    std::memcpy(&str_len, &bytes[offset], sizeof(str_len));
+                    offset += sizeof(str_len);
+
+                    if (str_len > 0) {
+                        if (offset + str_len + 1 > bytes.size()) {
+                            throw std::runtime_error("Bytecode truncated: cannot read local string data");
+                        }
+
+                        char* str_copy = new char[str_len + 1];
+                        std::memcpy(str_copy, &bytes[offset], str_len + 1);
+                        offset += str_len + 1;
+
+                        local_val.data.p = str_copy;
+                        local_val.set_flag(WordFlag::OwnsMemory);
+                    } else {
+                        local_val.data.p = nullptr;
+                    }
+                } else {
+                    if (offset + sizeof(Word::data) > bytes.size()) {
+                        throw std::runtime_error("Bytecode truncated: cannot read local value data");
+                    }
+
+                    std::memcpy(&local_val.data, &bytes[offset], sizeof(local_val.data));
+                    offset += sizeof(local_val.data);
+                }
 
                 func.locals[local_name] = local_val;
             }
