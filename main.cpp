@@ -59,6 +59,8 @@ private:
         opcode_map["fcmp"] = OpType::FCmp;
         opcode_map["i2f"] = OpType::I2F;
         opcode_map["f2i"] = OpType::F2I;
+        opcode_map["local.get"] = OpType::LocalGet;
+        opcode_map["local.set"] = OpType::LocalSet;
     }
 
     std::string trim(const std::string& str) {
@@ -272,6 +274,7 @@ private:
             case OpType::CallExtern:
             case OpType::I2F:
             case OpType::F2I:
+            case OpType::LocalGet:
                 if (op.args[0].type == WordType::Null) {
                     throw std::runtime_error("Instruction '" + opcode + "' requires 1 operand");
                 }
@@ -302,6 +305,7 @@ private:
             case OpType::FMul:
             case OpType::FDiv:
             case OpType::FCmp:
+            case OpType::LocalSet:
                 if (op.args[0].type == WordType::Null || op.args[1].type == WordType::Null) {
                     throw std::runtime_error("Instruction '" + opcode + "' requires 2 operands");
                 }

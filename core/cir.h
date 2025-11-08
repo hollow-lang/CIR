@@ -171,6 +171,13 @@ struct Word {
     [[nodiscard]] double as_float() const { return data.f; }
     [[nodiscard]] void *as_ptr() const { return data.p; }
     [[nodiscard]] bool as_bool() const { return data.b; }
+
+    constexpr static void expect(Word& w, WordType type, const char *msg) {
+        if (w.type != type) {
+            throw std::runtime_error("Expected " + std::to_string(static_cast<int>(type)) + " but got " +
+                                     std::to_string(static_cast<int>(w.type)) + ": " + msg);
+        }
+    }
 };
 
 enum class OpType : uint8_t {
@@ -214,8 +221,8 @@ enum class OpType : uint8_t {
     FCmp,
     I2F,
     F2I,
-    LocalGet,
-    LocalSet,
+    LocalGet, // TODO: implement
+    LocalSet, // TODO: implement
 };
 
 struct Op {
@@ -225,7 +232,7 @@ struct Op {
 
 struct Function {
     std::vector<Op> ops{};
-    std::unordered_map<std::string, Word> locals{};
+    std::unordered_map<Config::DI_TYPE, Word> locals{};
     Config::DI_TYPE co{};
 };
 
@@ -278,7 +285,7 @@ public:
         return stack.emplace_back();
     }
 
-    void execute_op(Function &fn, Op op) {
+    void execute_op(Function &fn, Op op) { // TODO: add expects for types
         Word &dest = getr(0);
         switch (op.type) {
             case OpType::Mov: {
@@ -490,6 +497,19 @@ public:
                 program.functions[program.state.cf].co = cf.co;
             } return;
 
+            // (local_id)
+            case OpType::LocalGet: {
+                Word::expect(op.args[0], WordType::Integer, "expecting local id");
+                dest = fn.locals[op.args[0].as_int()];
+            } break;
+
+            // (local_id, value(reg))
+            case OpType::LocalSet: {
+                Word::expect(op.args[0], WordType::Integer, "expecting local id"); // local_id
+                Word::expect(op.args[1], WordType::Integer, "expecting register"); // reg
+                fn.locals[op.args[0].as_int()] = getr(op.args[1].as_int());
+            } break;
+
             default: assert(0 && "wtf, this dont should happen.");
         }
     }
@@ -576,11 +596,8 @@ public:
             bytes.insert(bytes.end(), reinterpret_cast<uint8_t *>(&local_count),
                          reinterpret_cast<uint8_t *>(&local_count) + sizeof(local_count));
 
-            for (const auto &[local_name, local_val]: func.locals) {
-                uint32_t local_name_len = local_name.size();
-                bytes.insert(bytes.end(), reinterpret_cast<uint8_t *>(&local_name_len),
-                             reinterpret_cast<uint8_t *>(&local_name_len) + sizeof(local_name_len));
-                bytes.insert(bytes.end(), local_name.begin(), local_name.end());
+            for (const auto &[local_id, local_val]: func.locals) {
+                bytes.push_back(local_id);
 
                 bytes.push_back(static_cast<uint8_t>(local_val.type));
                 bytes.push_back(local_val.flags);
@@ -707,19 +724,12 @@ public:
 
             for (uint32_t l = 0; l < local_count; l++) {
                 if (offset + sizeof(uint32_t) > bytes.size()) {
-                    throw std::runtime_error("Bytecode truncated: cannot read local name length");
+                    throw std::runtime_error("Bytecode truncated: cannot read local id");
                 }
 
-                uint32_t local_name_len;
-                std::memcpy(&local_name_len, &bytes[offset], sizeof(local_name_len));
-                offset += sizeof(local_name_len);
-
-                if (offset + local_name_len > bytes.size()) {
-                    throw std::runtime_error("Bytecode truncated: cannot read local name");
-                }
-
-                std::string local_name(bytes.begin() + offset, bytes.begin() + offset + local_name_len);
-                offset += local_name_len;
+                uint32_t local_id;
+                std::memcpy(&local_id, &bytes[offset], sizeof(Config::DI_TYPE));
+                offset += sizeof(Config::DI_TYPE);
 
                 if (offset + 2 > bytes.size()) {
                     throw std::runtime_error("Bytecode truncated: cannot read local value type and flags");
@@ -761,7 +771,7 @@ public:
                     offset += sizeof(local_val.data);
                 }
 
-                func.locals[local_name] = local_val;
+                func.locals[local_id] = local_val;
             }
 
             program.functions[func_name] = func;
