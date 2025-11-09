@@ -1,5 +1,5 @@
 cmake-build-debug
 .idea
 bin
-program.bin
+example.bin
 example.cas

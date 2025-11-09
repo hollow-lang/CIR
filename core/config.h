@@ -9,4 +9,8 @@ namespace Config {
 
     // Default Integer Type
     using DI_TYPE = uint32_t;
+
+    inline const char* VERSION = "1.0.0";
+    inline const char* AUTHORS = "zhrexx";
+
 }
