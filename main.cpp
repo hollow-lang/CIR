@@ -54,6 +54,7 @@ void print_word(const Word& w) {
 namespace cir_std {
     void print(CIR &cir) {
         print_word(cir.getr(0));
+        std::cout << std::endl;
     }
 }
 
@@ -206,7 +207,6 @@ private:
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
             logger.success("Program executed successfully");
-
             if (config.benchmark) {
                 std::cout << "\nExecution time: " << duration.count() << " μs" << std::endl;
             }

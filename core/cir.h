@@ -185,18 +185,18 @@ enum class OpType : uint8_t {
     Push, // Push value
     PushReg, // push register
     Pop,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
+    IAdd,
+    ISub,
+    IMul,
+    IDiv,
+    IMod,
     And,
     Or,
     Xor,
     Not,
     Shl,
     Shr,
-    Cmp,
+    ICmp,
     Jmp,
     Je,
     Jne,
@@ -218,9 +218,8 @@ enum class OpType : uint8_t {
     FSub,
     FMul,
     FDiv,
-    FCmp,
-    I2F,
-    F2I,
+    FCmp, // TODO: implement
+    Cast,
     LocalGet, // TODO: implement
     LocalSet, // TODO: implement
 };
@@ -305,25 +304,25 @@ public:
                 r = pop();
             } break;
 
-            case OpType::Add: {
+            case OpType::IAdd: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 dest = Word::from_int(a.as_int() + b.as_int());
             } break;
 
-            case OpType::Sub: {
+            case OpType::ISub: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 dest = Word::from_int(a.as_int() - b.as_int());
             } break;
 
-            case OpType::Mul: {
+            case OpType::IMul: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 dest = Word::from_int(a.as_int() * b.as_int());
             } break;
 
-            case OpType::Div: {
+            case OpType::IDiv: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 if (b.as_int() == 0) {
@@ -332,7 +331,7 @@ public:
                 dest = Word::from_int(a.as_int() / b.as_int());
             } break;
 
-            case OpType::Mod: {
+            case OpType::IMod: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 if (b.as_int() == 0) {
@@ -376,7 +375,7 @@ public:
                 dest = Word::from_int(a.as_int() >> b.as_int());
             } break;
 
-            case OpType::Cmp: {
+            case OpType::ICmp: {
                 Word &a = getr(op.args[0].as_int());
                 Word &b = getr(op.args[1].as_int());
                 cmp_flag = (a.as_int() == b.as_int());
@@ -437,14 +436,39 @@ public:
                 dest = Word::from_float(a.as_float() / b.as_float());
             } break;
 
-            case OpType::I2F: {
+            case OpType::Cast: {
                 Word &a = getr(op.args[0].as_int());
-                a = Word::from_float(static_cast<double>(a.as_int()));
-            } break;
-
-            case OpType::F2I: {
-                Word &a = getr(op.args[0].as_int());
-                a = Word::from_int(static_cast<int64_t>(a.as_float()));
+                const char *target_type = (const char *)op.args[1].as_ptr();
+                switch (a.type) {
+                    case WordType::Integer: {
+                        if (target_type == "int") {
+                            break;
+                        } if (target_type == "float") {
+                            dest = Word::from_float(static_cast<double>(a.as_int()));
+                        } if (target_type == "ptr") {
+                            dest = Word::from_ptr((void*)a.as_int());
+                        } else {
+                            throw std::runtime_error("Invalid cast type: " + std::string(target_type));
+                        }
+                    } break;
+                    case WordType::Float: {
+                        if (target_type == "int") {
+                            dest = Word::from_int(static_cast<int>(a.as_float()));
+                        } else if (target_type == "float") {
+                            break;
+                        } else {
+                            throw std::runtime_error("Invalid cast type: " + std::string(target_type));
+                        }
+                    } break;
+                    case WordType::Pointer: {
+                        if (target_type == "int") {
+                            dest = Word::from_int((int64_t)a.as_ptr());
+                        } else {
+                            throw std::runtime_error("Invalid cast type: " + std::string(target_type));
+                        }
+                    }
+                    default: assert(0 && "Unsupported word type");
+                }
             } break;
 
             case OpType::Halt: {

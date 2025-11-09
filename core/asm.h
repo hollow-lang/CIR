@@ -28,18 +28,18 @@ private:
         opcode_map["push"] = OpType::Push;
         opcode_map["pushr"] = OpType::PushReg;
         opcode_map["pop"] = OpType::Pop;
-        opcode_map["add"] = OpType::Add;
-        opcode_map["sub"] = OpType::Sub;
-        opcode_map["mul"] = OpType::Mul;
-        opcode_map["div"] = OpType::Div;
-        opcode_map["mod"] = OpType::Mod;
+        opcode_map["iadd"] = OpType::IAdd;
+        opcode_map["isub"] = OpType::ISub;
+        opcode_map["imul"] = OpType::IMul;
+        opcode_map["idiv"] = OpType::IDiv;
+        opcode_map["imod"] = OpType::IMod;
         opcode_map["and"] = OpType::And;
         opcode_map["or"] = OpType::Or;
         opcode_map["xor"] = OpType::Xor;
         opcode_map["not"] = OpType::Not;
         opcode_map["shl"] = OpType::Shl;
         opcode_map["shr"] = OpType::Shr;
-        opcode_map["cmp"] = OpType::Cmp;
+        opcode_map["icmp"] = OpType::ICmp;
         opcode_map["jmp"] = OpType::Jmp;
         opcode_map["je"] = OpType::Je;
         opcode_map["jne"] = OpType::Jne;
@@ -62,8 +62,7 @@ private:
         opcode_map["fmul"] = OpType::FMul;
         opcode_map["fdiv"] = OpType::FDiv;
         opcode_map["fcmp"] = OpType::FCmp;
-        opcode_map["i2f"] = OpType::I2F;
-        opcode_map["f2i"] = OpType::F2I;
+        opcode_map["cast"] = OpType::Cast;
         opcode_map["local.get"] = OpType::LocalGet;
         opcode_map["local.set"] = OpType::LocalSet;
     }
@@ -289,8 +288,6 @@ private:
             case OpType::Jmp:
             case OpType::Call:
             case OpType::CallExtern:
-            case OpType::I2F:
-            case OpType::F2I:
             case OpType::LocalGet:
                 if (op.args[0].type == WordType::Null) {
                     throw std::runtime_error("Instruction '" + opcode + "' requires 1 operand");
@@ -298,17 +295,17 @@ private:
                 break;
 
             case OpType::Mov:
-            case OpType::Add:
-            case OpType::Sub:
-            case OpType::Mul:
-            case OpType::Div:
-            case OpType::Mod:
+            case OpType::IAdd:
+            case OpType::ISub:
+            case OpType::IMul:
+            case OpType::IDiv:
+            case OpType::IMod:
             case OpType::And:
             case OpType::Or:
             case OpType::Xor:
             case OpType::Shl:
             case OpType::Shr:
-            case OpType::Cmp:
+            case OpType::ICmp:
             case OpType::Je:
             case OpType::Jne:
             case OpType::Jg:
@@ -322,6 +319,7 @@ private:
             case OpType::FMul:
             case OpType::FDiv:
             case OpType::FCmp:
+            case OpType::Cast:
             case OpType::LocalSet:
                 if (op.args[0].type == WordType::Null || op.args[1].type == WordType::Null) {
                     throw std::runtime_error("Instruction '" + opcode + "' requires 2 operands");
