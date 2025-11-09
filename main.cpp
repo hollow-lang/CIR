@@ -10,6 +10,8 @@
 #include "core/cir.h"
 
 class Assembler {
+public:
+    bool show_better_practice = true;
 private:
     std::unordered_map<std::string, OpType> opcode_map;
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>> labels;
@@ -17,6 +19,7 @@ private:
     Program program;
     std::string current_function;
     size_t line_number = 0;
+
 
     void init_opcode_map() {
         opcode_map["mov"] = OpType::Mov;
@@ -95,7 +98,6 @@ private:
         if (str[0] == '-' || str[0] == '+') start = 1;
         if (start >= str.size()) return false;
 
-        // Check for hex
         if (str.size() > start + 2 && str[start] == '0' &&
             (str[start + 1] == 'x' || str[start + 1] == 'X')) {
             for (size_t i = start + 2; i < str.size(); i++) {
@@ -104,7 +106,6 @@ private:
             return true;
         }
 
-        // Check for binary
         if (str.size() > start + 2 && str[start] == '0' &&
             (str[start + 1] == 'b' || str[start + 1] == 'B')) {
             for (size_t i = start + 2; i < str.size(); i++) {
@@ -113,7 +114,6 @@ private:
             return true;
         }
 
-        // Check for decimal or float
         bool has_dot = false;
         bool has_exp = false;
         for (size_t i = start; i < str.size(); i++) {
@@ -142,6 +142,12 @@ private:
                 forward_label_refs.insert(current_function + ":" + label);
             }
             return Word::from_int(static_cast<int64_t>(labels[current_function][label]));
+        }
+
+        // explicit id "#name"
+        if (op[0] == '#') {
+            std::string id = op.substr(1);
+            return Word::from_string_owned(id);
         }
 
         if (op[0] == 'r' && op.size() > 1 && std::isdigit(op[1])) {
@@ -251,6 +257,15 @@ private:
         if (looks_like_number(op)) {
             throw std::runtime_error("Numeric literal '" + op + "' must be prefixed with '$' (e.g., $" + op + ")");
         }
+
+        if (show_better_practice) std::cerr << "Note (line " << line_number << "): Operand '" << op << "' is being treated as a plain string.\n"
+          << "Mandatory prefixes:\n"
+          << "  - Numbers must start with $ (e.g., $123, $0xFF, $0b101)\n"
+          << "  - Labels must start with @ (e.g., @loop_start)\n"
+          << "  - Registers must be r0-r" << (Config::REGISTER_COUNT - 1) << "\n"
+          << "  - Strings:   \"text\"\n"
+          << "Optional for readability:\n"
+          << "  - IDs:       #name\n" << std::endl;
 
         return Word::from_string_owned(op);
     }
@@ -572,6 +587,7 @@ void register_std(CIR &cir) {
     cir.set_extern_fn("print", cir_std::print);
 }
 
+// TODO: add just running bytecode & -fno-better-practice-notes
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <input.asm> [output.bin]" << std::endl;

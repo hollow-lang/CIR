@@ -3,6 +3,6 @@ mov $10, r0
 mov $10, r1
 add r0, r1
 
-callx "print"
+callx print
 
 .end
