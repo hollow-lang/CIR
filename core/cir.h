@@ -220,8 +220,8 @@ enum class OpType : uint8_t {
     FDiv,
     FCmp, // TODO: implement
     Cast,
-    LocalGet, // TODO: implement
-    LocalSet, // TODO: implement
+    LocalGet,
+    LocalSet,
 };
 
 struct Op {
