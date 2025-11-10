@@ -1,4 +1,4 @@
-// Add -d (load library) flag
+// TODO: test -d
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,8 +11,11 @@
 
 #include "core/cir.h"
 #include "core/asm.h"
+#include "core/helpers/sdynlib.h"
 
 namespace fs = std::filesystem;
+
+using CIR_InitLib_Fn = void (*)(CIR& vm);
 
 struct CliConfig {
     std::string program_name;
@@ -26,6 +29,7 @@ struct CliConfig {
     bool benchmark = false;
     bool disassemble = false;
     int log_level = 1;
+    std::vector<DynLib> dls{};
 };
 
 void print_word(const Word& w) {
@@ -249,6 +253,10 @@ public:
         }
 
         if (!config.skip_run) {
+            for (auto& dl : config.dls) {
+                auto init_lib_fn = dl.get<CIR_InitLib_Fn>("cir_init_lib");
+                init_lib_fn(cir);
+            }
             if (!execute()) {
                 return 1;
             }
@@ -271,6 +279,7 @@ private:
         std::cout << "Usage: " << config.program_name << " <input_file> [options]\n" << std::endl;
         std::cout << "Options:" << std::endl;
         std::cout << "  -o, --output <file>      Specify output bytecode file (default: program.bin)" << std::endl;
+        std::cout << "  -d, --dl <file>          Specify a Dynamic Library path" << std::endl;
         std::cout << "  -c, --no-compile         Skip compilation, run existing bytecode" << std::endl;
         std::cout << "  -r, --no-run             Compile only, don't execute" << std::endl;
         std::cout << "  -v, --verbose            Enable verbose output" << std::endl;
@@ -311,6 +320,16 @@ public:
             } else if (arg == "--version") {
                 print_version();
                 exit(0);
+            } else if (arg == "-d" || arg == "--dl") {
+                if (i + 1 >= args.size()) {
+                    throw std::runtime_error("Missing value for " + arg);
+                }
+                DynLib dl;
+                if (!dl.load(args[++i])) {
+                    throw std::runtime_error("Failed to load dynamic library: " + args[i]);
+                }
+
+                config.dls.push_back(dl);
             } else if (arg == "-v" || arg == "--verbose") {
                 config.log_level = 2;
                 config.verbose = true;
