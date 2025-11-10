@@ -37,7 +37,7 @@ void print_word(const Word& w) {
             break;
         case WordType::Pointer:
             if (w.has_flag(WordFlag::String)) {
-                std::cout << "\"" << static_cast<char*>(w.as_ptr()) << "\"";
+                std::cout << static_cast<char*>(w.as_ptr());
             } else {
                 std::cout << w.as_ptr();
             }

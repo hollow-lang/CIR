@@ -4,12 +4,5 @@ s:
     mov $10, r1
     iadd r0, r1
 
-a:
     callx print
-
-    mov comp(a), r0
-    cast "int", r0
-
-    callx print
-
 .end
