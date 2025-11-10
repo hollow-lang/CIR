@@ -23,7 +23,7 @@ private:
     std::string current_function;
     size_t line_number = 0;
 
-    CTEE ctee;
+    CTEE ctee{};
 
 
     void init_opcode_map() {
@@ -420,7 +420,7 @@ private:
             throw std::runtime_error("No functions defined in program");
         }
 
-        if (program.functions.find("main") == program.functions.end()) {
+        if (!program.functions.contains("main")) {
             throw std::runtime_error("No 'main' function defined");
         }
     }

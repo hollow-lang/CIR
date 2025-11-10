@@ -25,7 +25,7 @@ enum class WordType : uint8_t {
     Null
 };
 
-enum class WordFlag : uint8_t {
+enum class WordFlag : uint16_t {
     None = 0,
     String = 1 << 1,
     OwnsMemory = 1 << 2,
@@ -34,7 +34,7 @@ enum class WordFlag : uint8_t {
 
 struct Word {
     WordType type{WordType::Null};
-    uint8_t flags = 0;
+    uint16_t flags = 0;
 
     union {
         int64_t i;
