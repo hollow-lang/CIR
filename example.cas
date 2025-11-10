@@ -8,6 +8,8 @@ a:
     callx print
 
     mov comp(a + 10), r0
+    cast "int", r0
+
     callx print
 
 .end

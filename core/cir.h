@@ -437,8 +437,9 @@ public:
             } break;
 
             case OpType::Cast: {
-                Word &a = getr(op.args[0].as_int());
-                const char *target_type = (const char *)op.args[1].as_ptr();
+                std::string target_type = (const char *)op.args[0].as_ptr();
+
+                Word &a = getr(op.args[1].as_int());
                 switch (a.type) {
                     case WordType::Integer: {
                         if (target_type == "int") {
