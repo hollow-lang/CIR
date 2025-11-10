@@ -25,11 +25,11 @@ enum class WordType : uint8_t {
     Null
 };
 
-// TODO: see Mov instruction
 enum class WordFlag : uint8_t {
     None = 0,
     String = 1 << 1,
     OwnsMemory = 1 << 2,
+    Register = 1 << 3,
 };
 
 struct Word {
@@ -110,6 +110,14 @@ struct Word {
         Word w;
         w.type = WordType::Integer;
         w.data.i = val;
+        return w;
+    }
+
+    static Word from_reg(int64_t val) {
+        Word w;
+        w.type = WordType::Integer;
+        w.data.i = val;
+        w.set_flag(WordFlag::Register);
         return w;
     }
 
@@ -288,9 +296,14 @@ public:
     void execute_op(Function &fn, Op op) { // TODO: add expects for types
         Word &dest = getr(0);
         switch (op.type) {
-            // TODO: maybe add register flag because you cant move r0 into r1 if you want
             case OpType::Mov: {
-                move(op.args[0], op.args[1].as_int());
+                Word value;
+                if (op.args[0].has_flag(WordFlag::Register)) {
+                    value = getr(op.args[0].as_int()); // reg
+                } else {
+                    value = op.args[0]; // lit
+                }
+                move(value, op.args[1].as_int());
             } break;
 
             case OpType::Push: {

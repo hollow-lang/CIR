@@ -4,5 +4,8 @@ s:
     mov $10, r1
     iadd r0, r1
 
+    mov r0, r1
+    mov r1, r0
+
     callx print
 .end

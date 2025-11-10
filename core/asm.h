@@ -170,7 +170,7 @@ private:
                 throw std::runtime_error("Invalid register number r" + std::to_string(reg_num) +
                                        " (valid range: r0-r" + std::to_string(Config::REGISTER_COUNT - 1) + ")");
             }
-            return Word::from_int(reg_num);
+            return Word::from_reg(reg_num);
         }
 
         if (op[0] == '"' && op.back() == '"') {
