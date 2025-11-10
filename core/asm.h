@@ -155,7 +155,7 @@ private:
             if (labels[current_function].find(label) == labels[current_function].end()) {
                 forward_label_refs.insert(current_function + ":" + label);
             }
-            return Word::from_int(static_cast<int64_t>(labels[current_function][label]));
+            return Word::from_int(static_cast<int64_t>(labels[current_function][label]) - 1);
         }
 
         // explicit id "#name"
