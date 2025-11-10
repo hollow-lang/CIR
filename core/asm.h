@@ -10,6 +10,7 @@
 #include <cctype>
 #include <algorithm>
 #include "cir.h"
+#include "helpers/scalc.h"
 
 class Assembler {
 public:
@@ -21,6 +22,8 @@ private:
     Program program;
     std::string current_function;
     size_t line_number = 0;
+
+    CTEE ctee;
 
 
     void init_opcode_map() {
@@ -136,6 +139,16 @@ private:
 
     Word parse_operand(const std::string& operand, bool is_jump = false) {
         std::string op = trim(operand);
+
+        // NOTE: returns double
+        if (op.starts_with("comp(") && op.ends_with(")")) {
+            std::string expr = op.substr(5, op.size() - 1);
+            std::unordered_map<std::string, double> temp_ctx{
+                labels[current_function].begin(), labels[current_function].end()
+            };
+
+            return Word::from_float(ctee.eval(expr, temp_ctx));
+        }
 
         if (op[0] == '@') {
             std::string label = op.substr(1);

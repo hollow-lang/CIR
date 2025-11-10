@@ -1,8 +1,13 @@
 .fn main
-mov $10, r0
-mov $10, r1
-iadd r0, r1
+s:
+    mov $10, r0
+    mov $10, r1
+    iadd r0, r1
 
-callx print
+a:
+    callx print
+
+    mov comp(a + 10), r0
+    callx print
 
 .end
