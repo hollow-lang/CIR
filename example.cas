@@ -6,6 +6,6 @@
     mov r0, r1
     mov r1, r0
 
-    callx print
-    callx example.example_fn
+    callx std.print
 .end
+

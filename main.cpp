@@ -61,32 +61,35 @@ namespace cir_std {
         print_word(cir.getr(0));
         std::cout << std::endl;
     }
+
+    void init_std(CIR& cir) {
+        cir.set_extern_fn("std.print", print);
+    }
 }
 
 class Logger {
-private:
     int level;
 
 public:
     explicit Logger(int log_level) : level(log_level) {}
 
-    void info(const std::string& msg) {
+    void info(const std::string& msg) const {
         if (level >= 1) {
             std::cout << "[INFO] " << msg << std::endl;
         }
     }
 
-    void debug(const std::string& msg) {
+    void debug(const std::string& msg) const {
         if (level >= 2) {
             std::cout << "[DEBUG] " << msg << std::endl;
         }
     }
 
-    void error(const std::string& msg) {
+    static void error(const std::string& msg) {
         std::cerr << "[ERROR] " << msg << std::endl;
     }
 
-    void success(const std::string& msg) {
+    void success(const std::string& msg) const {
         if (level >= 1) {
             std::cout << "[SUCCESS] " << msg << std::endl;
         }
@@ -94,16 +97,9 @@ public:
 };
 
 class CliTool {
-private:
     CliConfig config;
     Logger logger;
     CIR cir;
-
-    void register_stdlib() {
-        cir.set_extern_fn("print", cir_std::print);
-    }
-
-
 
     void print_stack() {
         std::cout << "Stack Contents: " << std::endl;
@@ -205,7 +201,7 @@ private:
         try {
             auto start = std::chrono::high_resolution_clock::now();
 
-            register_stdlib();
+            cir_std::init_std(cir);
             cir.execute_program();
 
             auto end = std::chrono::high_resolution_clock::now();
