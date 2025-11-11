@@ -13,4 +13,5 @@ add_executable(CIR main.cpp
         core/config.h
         core/asm.h
         core/helpers/scalc.h
-        core/helpers/sdynlib.h)
+        core/helpers/sdynlib.h
+        examples/dl-imports/example.cpp)

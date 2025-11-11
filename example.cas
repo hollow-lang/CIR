@@ -1,5 +1,4 @@
 .fn main
-s:
     mov $10, r0
     mov $10, r1
     iadd r0, r1
@@ -8,6 +7,5 @@ s:
     mov r1, r0
 
     callx print
-
-    jmp @s
+    callx example.example_fn
 .end
