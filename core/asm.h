@@ -138,6 +138,7 @@ private:
     }
 
     Word parse_operand(const std::string& operand, bool is_jump = false) {
+        (void)is_jump;
         std::string op = trim(operand);
 
         // NOTE: returns double
@@ -472,6 +473,11 @@ public:
                 }
                 current_func = nullptr;
                 current_function.clear();
+                continue;
+            }
+
+            if (cleaned.find(".extern ") == 0) {
+                program.required_externs.push_back(cleaned.substr(8));
                 continue;
             }
 

@@ -6,10 +6,10 @@
 
 // Compile Time Expression Evaluator
 class CTEE {
+    size_t pos{};
     std::string& s;
-    size_t pos;
-
     std::unordered_map<std::string, double>& ctx; // label addresses and etc.
+
 
     [[nodiscard]] char peek() const { return pos < s.size() ? s[pos] : '\0'; }
     char get() { return pos < s.size() ? s[pos++] : '\0'; }
@@ -91,8 +91,13 @@ public:
         ctx = context;
         return expr();
     }
-    CTEE(std::string& str, std::unordered_map<std::string, double>& context) : s(str), pos(0), ctx(context) {}
-    CTEE() : s(dummy_str), ctx(dummy_ctx), pos(0) {}
+
+    CTEE(std::string& str, std::unordered_map<std::string, double>& context)
+        : pos(0), s(str), ctx(context) {}
+
+    CTEE()
+        : pos(0), s(dummy_str), ctx(dummy_ctx) {}
+
     ~CTEE() = default;
 
 };

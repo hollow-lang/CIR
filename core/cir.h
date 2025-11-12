@@ -252,6 +252,8 @@ class Program {
 public:
     std::unordered_map<std::string, Function> functions{};
 
+    std::vector<std::string> required_externs{};
+
     struct {
         std::string cf{};
         bool running = true;
@@ -513,6 +515,7 @@ public:
                             throw std::runtime_error("Invalid cast type: " + std::string(target_type));
                         }
                     }
+                    break;
                     default: assert(0 && "Unsupported word type");
                 }
             }
@@ -622,7 +625,16 @@ public:
         }
     }
 
+    void check_externs() {
+        for (const auto &req: program.required_externs) {
+            if (!extern_functions.contains(req)) {
+                throw std::runtime_error("Missing required external function: " + req);
+            }
+        }
+    }
+
     void execute_program() {
+        check_externs();
         execute_function("main");
     }
 
@@ -663,6 +675,10 @@ public:
             }
         }
 
+        for (const auto &req: program.required_externs) {
+            add_string(req.c_str());
+        }
+
         uint32_t string_count = string_list.size();
         bytes.insert(bytes.end(), reinterpret_cast<uint8_t *>(&string_count),
                      reinterpret_cast<uint8_t *>(&string_count) + sizeof(string_count));
@@ -673,6 +689,18 @@ public:
                          reinterpret_cast<uint8_t *>(&str_len) + sizeof(str_len));
             bytes.insert(bytes.end(), str.begin(), str.end());
             bytes.push_back(0);
+        }
+
+        uint32_t req_count = program.required_externs.size();
+        bytes.insert(bytes.end(),
+                     reinterpret_cast<uint8_t *>(&req_count),
+                     reinterpret_cast<uint8_t *>(&req_count) + sizeof(req_count));
+
+        for (const auto &req: program.required_externs) {
+            uint32_t str_idx = string_table[req];
+            bytes.insert(bytes.end(),
+                         reinterpret_cast<uint8_t *>(&str_idx),
+                         reinterpret_cast<uint8_t *>(&str_idx) + sizeof(str_idx));
         }
 
         uint32_t func_count = program.functions.size();
@@ -767,6 +795,31 @@ public:
 
             string_table[s] = std::string(reinterpret_cast<const char *>(&bytes[offset]), str_len);
             offset += str_len + 1;
+        }
+
+        if (offset + sizeof(uint32_t) > bytes.size()) {
+            throw std::runtime_error("Bytecode truncated: cannot read required_externs count");
+        }
+
+        uint32_t req_count;
+        std::memcpy(&req_count, &bytes[offset], sizeof(req_count));
+        offset += sizeof(req_count);
+
+        program.required_externs.clear();
+        for (uint32_t i = 0; i < req_count; i++) {
+            if (offset + sizeof(uint32_t) > bytes.size()) {
+                throw std::runtime_error("Bytecode truncated: cannot read required_externs string index");
+            }
+
+            uint32_t str_idx;
+            std::memcpy(&str_idx, &bytes[offset], sizeof(str_idx));
+            offset += sizeof(str_idx);
+
+            if (str_idx >= string_table.size()) {
+                throw std::runtime_error("Invalid string table index for required_extern");
+            }
+
+            program.required_externs.push_back(string_table[str_idx]);
         }
 
         if (offset + sizeof(uint32_t) > bytes.size()) {

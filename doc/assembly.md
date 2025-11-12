@@ -4,6 +4,23 @@ CIR Assembly (CAS) is a **function-based assembly language** where all code must
 
 ---
 
+## External Functions
+
+External functions can be called using the `callx` instruction.
+They always exist if registered, but you can also require one to be present at runtime.
+```asm
+.extern example
+```
+
+When a required function is not found, CIR will report an error:
+```text
+./build/cas ./example.cas -d examples/dl-imports/libexample.so
+[INFO] Compiling: ./example.cas
+[SUCCESS] Bytecode written to: example.bin (185 bytes)
+[INFO] Executing program
+[ERROR] Execution failed: Missing required external function: example
+```
+
 ## Function Structure
 
 Functions are declared using the `.fn` directive and terminated with `.end`:
