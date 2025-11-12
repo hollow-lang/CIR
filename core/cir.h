@@ -1,3 +1,5 @@
+// add memory functions (alloc)
+
 #pragma once
 #include <array>
 #include <cassert>
@@ -645,6 +647,21 @@ void CIR::execute_op(Function &fn, Op op) {
             fn.locals[op.args[0].as_int()] = getr(op.args[1].as_int());
         }
         break;
+
+        case OpType::FCmp: {
+            cmp_flag = (getr(op.args[0].as_int()).as_float() == getr(op.args[1].as_int()).as_float());
+        } break;
+
+        case OpType::Load: {
+            void* src = getr(op.args[0].as_int()).as_ptr();
+            if (!src) throw std::runtime_error("Load: source pointer is null");
+
+            memcpy(dest.as_ptr(), src, op.args[1].as_int());
+        } break;
+
+        case OpType::Store: {
+            memcpy(getr(op.args[0].as_int()).as_ptr(), dest.as_ptr(), op.args[1].as_int());
+        } break;
 
         default: assert(0 && "wtf, this dont should happen.");
     }
