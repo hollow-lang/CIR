@@ -210,10 +210,10 @@ enum class OpType : uint8_t {
     Jmp,
     Je,
     Jne,
-    Jg, // TODO: implement
-    Jl, // TODO: implement
-    Jge, // TODO: implement
-    Jle, // TODO: implement
+    Gt,
+    Lt,
+    Gte,
+    Lte,
     Call,
     CallExtern,
     Ret,
@@ -478,6 +478,22 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        case OpType::Gt:  {
+            cmp_flag = (getr(op.args[0].as_int()).as_int() > getr(op.args[1].as_int()).as_int());
+        } break;
+
+        case OpType::Lt:  {
+            cmp_flag = (getr(op.args[0].as_int()).as_int() < getr(op.args[1].as_int()).as_int());
+        } break;
+
+        case OpType::Gte: {
+            cmp_flag = (getr(op.args[0].as_int()).as_int() >= getr(op.args[1].as_int()).as_int());
+        } break;
+
+        case OpType::Lte: {
+            cmp_flag = (getr(op.args[0].as_int()).as_int() <= getr(op.args[1].as_int()).as_int());
+        } break;
+
         case OpType::Inc: {
             Word &r = getr(op.args[0].as_int());
             r = Word::from_int(r.as_int() + 1);
@@ -566,10 +582,7 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        case OpType::Halt: {
-            program.state.running = false;
-        }
-        break;
+        case OpType::Halt: program.state.running = false; break;
 
         case OpType::Nop: break;
 

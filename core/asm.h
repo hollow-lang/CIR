@@ -26,7 +26,7 @@ private:
     CTEE ctee{};
 
 
-    void init_opcode_map() {
+    void init_opcode_map() { // TODO: maybe add short description
         opcode_map["mov"] = OpType::Mov;
         opcode_map["push"] = OpType::Push;
         opcode_map["pushr"] = OpType::PushReg;
@@ -46,10 +46,10 @@ private:
         opcode_map["jmp"] = OpType::Jmp;
         opcode_map["je"] = OpType::Je;
         opcode_map["jne"] = OpType::Jne;
-        opcode_map["jg"] = OpType::Jg;
-        opcode_map["jl"] = OpType::Jl;
-        opcode_map["jge"] = OpType::Jge;
-        opcode_map["jle"] = OpType::Jle;
+        opcode_map["gt"] = OpType::Gt;
+        opcode_map["gte"] = OpType::Gte;
+        opcode_map["lt"] = OpType::Lt;
+        opcode_map["lte"] = OpType::Lte;
         opcode_map["call"] = OpType::Call;
         opcode_map["callx"] = OpType::CallExtern;
         opcode_map["ret"] = OpType::Ret;
@@ -322,10 +322,10 @@ private:
             case OpType::ICmp:
             case OpType::Je:
             case OpType::Jne:
-            case OpType::Jg:
-            case OpType::Jl:
-            case OpType::Jge:
-            case OpType::Jle:
+            case OpType::Gt:
+            case OpType::Gte:
+            case OpType::Lt:
+            case OpType::Lte:
             case OpType::Load:
             case OpType::Store:
             case OpType::FAdd:
@@ -382,9 +382,7 @@ private:
             op.args[i] = Word::from_null();
         }
 
-        bool is_jump = (op.type == OpType::Jmp || op.type == OpType::Je || op.type == OpType::Jne ||
-                       op.type == OpType::Jg || op.type == OpType::Jl ||
-                       op.type == OpType::Jge || op.type == OpType::Jle);
+        bool is_jump = (op.type == OpType::Jmp || op.type == OpType::Je || op.type == OpType::Jne);
 
         if (first_space != std::string::npos) {
             std::string operands_str = cleaned.substr(first_space + 1);
