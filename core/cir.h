@@ -219,8 +219,8 @@ enum class OpType : uint8_t {
     Call,
     CallExtern,
     Ret,
-    Load, // TODO: Implement
-    Store, // TODO: Implement
+    Load,
+    Store,
     Halt,
     Nop,
     Inc,
@@ -230,7 +230,7 @@ enum class OpType : uint8_t {
     FSub,
     FMul,
     FDiv,
-    FCmp, // TODO: implement
+    FCmp,
     Cast,
     LocalGet,
     LocalSet,
@@ -292,10 +292,6 @@ public:
 
 #ifdef CIR_IMPLEMENTATION
 
-#include <cassert>
-#include <cstring>
-#include <stdexcept>
-
 void Word::print() const {
     switch (type) {
         case WordType::Integer:
@@ -342,6 +338,7 @@ Word &CIR::gets() {
     return stack.emplace_back();
 }
 
+// TODO: since we extended operands count now instructions that need to use register can use the 3operand
 void CIR::execute_op(Function &fn, Op op) {
     Word &dest = getr(0);
     switch (op.type) {
