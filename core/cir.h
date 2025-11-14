@@ -18,7 +18,7 @@
 class CIR;
 
 using CIR_ExternFn = void (*)(CIR &vm);
-using CIR_InitLibFn = void (*)(CIR& vm);
+using CIR_InitLibFn = void (*)(CIR &vm);
 
 
 enum class WordType : uint8_t {
@@ -274,19 +274,33 @@ class CIR {
 
 public:
     Word pop();
+
     void push(const Word &value);
+
     void move(const Word &w, uint16_t i);
+
     Word &getr(uint16_t i);
+
     Word &gets();
+
     void execute_op(Function &fn, Op op);
+
     void execute_function(const std::string &name);
+
     void check_externs();
+
     void execute_program();
+
     std::vector<uint8_t> to_bytecode();
+
     void from_bytecode(const std::vector<uint8_t> &bytes);
+
     void load_program(Program p);
+
     Program &get_program();
+
     void set_extern_fn(std::string n, CIR_ExternFn f);
+
     std::vector<Word> &get_stack();
 };
 
@@ -302,7 +316,7 @@ void Word::print() const {
             break;
         case WordType::Pointer:
             if (has_flag(WordFlag::String)) {
-                std::cout << static_cast<char*>(as_ptr());
+                std::cout << static_cast<char *>(as_ptr());
             } else {
                 std::cout << as_ptr();
             }
@@ -477,21 +491,25 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        case OpType::Gt:  {
+        case OpType::Gt: {
             cmp_flag = (getr(op.args[0].as_int()).as_int() > getr(op.args[1].as_int()).as_int());
-        } break;
+        }
+        break;
 
-        case OpType::Lt:  {
+        case OpType::Lt: {
             cmp_flag = (getr(op.args[0].as_int()).as_int() < getr(op.args[1].as_int()).as_int());
-        } break;
+        }
+        break;
 
         case OpType::Gte: {
             cmp_flag = (getr(op.args[0].as_int()).as_int() >= getr(op.args[1].as_int()).as_int());
-        } break;
+        }
+        break;
 
         case OpType::Lte: {
             cmp_flag = (getr(op.args[0].as_int()).as_int() <= getr(op.args[1].as_int()).as_int());
-        } break;
+        }
+        break;
 
         case OpType::Inc: {
             Word &r = getr(op.args[0].as_int());
@@ -581,7 +599,8 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        case OpType::Halt: program.state.running = false; break;
+        case OpType::Halt: program.state.running = false;
+            break;
 
         case OpType::Nop: break;
 
@@ -647,18 +666,23 @@ void CIR::execute_op(Function &fn, Op op) {
 
         case OpType::FCmp: {
             cmp_flag = (getr(op.args[0].as_int()).as_float() == getr(op.args[1].as_int()).as_float());
-        } break;
+        }
+        break;
 
         case OpType::Load: {
-            void* src = getr(op.args[0].as_int()).as_ptr();
+            void *d = getr(op.args[0].as_int()).as_ptr();
+            void *src = getr(op.args[1].as_int()).as_ptr();
             if (!src) throw std::runtime_error("Load: source pointer is null");
+            if (!d) throw std::runtime_error("Load: destionation pointer is null");
 
-            memcpy(dest.as_ptr(), src, op.args[1].as_int());
-        } break;
+            memcpy(d, src, op.args[2].as_int());
+        }
+        break;
 
         case OpType::Store: {
-            memcpy(getr(op.args[0].as_int()).as_ptr(), dest.as_ptr(), op.args[1].as_int());
-        } break;
+            memcpy(getr(op.args[0].as_int()).as_ptr(), getr(op.args[1].as_int()).as_ptr(), op.args[2].as_int());
+        }
+        break;
 
         default: assert(0 && "wtf, this dont should happen.");
     }

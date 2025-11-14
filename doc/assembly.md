@@ -1,6 +1,7 @@
 # CIR Assembly (CAS) Language Reference
 
-CIR Assembly (CAS) is a **function-based assembly language** where all code must be contained within functions. Global labels are not permitted.
+CIR Assembly (CAS) is a **function-based assembly language** where all code must be contained within functions. Global
+labels are not permitted.
 
 ---
 
@@ -8,11 +9,13 @@ CIR Assembly (CAS) is a **function-based assembly language** where all code must
 
 External functions can be called using the `callx` instruction.
 They always exist if registered, but you can also require one to be present at runtime.
+
 ```asm
 .extern example
 ```
 
 When a required function is not found, CIR will report an error:
+
 ```text
 ./build/cas ./example.cas -d examples/dl-imports/libexample.so
 [INFO] Compiling: ./example.cas
@@ -32,6 +35,7 @@ Functions are declared using the `.fn` directive and terminated with `.end`:
 ```
 
 **Key Points:**
+
 - `.fn <name>` declares a function
 - `.end` marks the end of the function
 - All executable code must be inside a function
@@ -52,6 +56,7 @@ loop_start:
 ```
 
 **Label Rules:**
+
 - Declared with `label_name:`
 - Referenced with `@label_name` prefix
 - Scoped to their containing function only
@@ -64,16 +69,17 @@ loop_start:
 
 CAS uses prefix notation to distinguish operand types:
 
-| Prefix | Type | Example | Description |
-|--------|------|---------|-------------|
-| `$` | Numeric literal | `$42`, `$3.14`, `$0xFF`, `$0b1010` | Integer or floating-point value (mandatory) |
-| `"` | String literal | `"Hello"` | Text string |
-| `@` | Label reference | `@loop_start` | Reference to a local label (mandatory) |
-| `#` | Explicit identifier | `#my_var` | Force treat as identifier/string (optional) |
-| `r` | Register | `r0`, `r1`, ... | Register reference |
-| `'` | Character literal | `'a'`, `'\n'` | Single character (converted to integer) |
+| Prefix | Type                | Example                            | Description                                 |
+|--------|---------------------|------------------------------------|---------------------------------------------|
+| `$`    | Numeric literal     | `$42`, `$3.14`, `$0xFF`, `$0b1010` | Integer or floating-point value (mandatory) |
+| `"`    | String literal      | `"Hello"`                          | Text string                                 |
+| `@`    | Label reference     | `@loop_start`                      | Reference to a local label (mandatory)      |
+| `#`    | Explicit identifier | `#my_var`                          | Force treat as identifier/string (optional) |
+| `r`    | Register            | `r0`, `r1`, ...                    | Register reference                          |
+| `'`    | Character literal   | `'a'`, `'\n'`                      | Single character (converted to integer)     |
 
 **Special Values:**
+
 - `true`, `TRUE` - Boolean true
 - `false`, `FALSE` - Boolean false
 - `null`, `NULL` - Null value
@@ -107,6 +113,7 @@ end:
 ```
 
 **Features:**
+
 - Supports: `+`, `-`, `*`, `/`, parentheses
 - Can reference labels (converted to their instruction offsets)
 - Returns floating-point result
@@ -133,6 +140,7 @@ instruction operand
 ```
 
 **Examples:**
+
 ```asm
 push $42       ; Push value onto stack
 pop r1         ; Pop value from stack into r1
@@ -148,6 +156,7 @@ instruction source, destination
 ```
 
 **Examples:**
+
 ```asm
 mov $100, r1      ; Move 100 into r1
 iadd r0, r1       ; r0 = r0 + r1 (result in r0)
@@ -163,94 +172,94 @@ mov r1, r0        ; Move r1 into r0
 
 ### Data Movement
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `mov` | src, dest | Move value from src to dest |
-| `push` | value | Push value onto stack |
-| `pushr` | register | Push register value onto stack |
-| `pop` | register | Pop value from stack into register |
+| Instruction | Operands  | Description                        |
+|-------------|-----------|------------------------------------|
+| `mov`       | src, dest | Move value from src to dest        |
+| `push`      | value     | Push value onto stack              |
+| `pushr`     | register  | Push register value onto stack     |
+| `pop`       | register  | Pop value from stack into register |
 
 ### Integer Arithmetic
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `iadd` | reg1, reg2 | r0 = reg1 + reg2 |
-| `isub` | reg1, reg2 | r0 = reg1 - reg2 |
-| `imul` | reg1, reg2 | r0 = reg1 * reg2 |
-| `idiv` | reg1, reg2 | r0 = reg1 / reg2 |
-| `imod` | reg1, reg2 | r0 = reg1 % reg2 |
-| `inc` | register | Increment register |
-| `dec` | register | Decrement register |
-| `neg` | register | r0 = -register |
+| Instruction | Operands   | Description        |
+|-------------|------------|--------------------|
+| `iadd`      | reg1, reg2 | r0 = reg1 + reg2   |
+| `isub`      | reg1, reg2 | r0 = reg1 - reg2   |
+| `imul`      | reg1, reg2 | r0 = reg1 * reg2   |
+| `idiv`      | reg1, reg2 | r0 = reg1 / reg2   |
+| `imod`      | reg1, reg2 | r0 = reg1 % reg2   |
+| `inc`       | register   | Increment register |
+| `dec`       | register   | Decrement register |
+| `neg`       | register   | r0 = -register     |
 
 ### Floating-Point Arithmetic
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `fadd` | reg1, reg2 | r0 = reg1 + reg2 (float) |
-| `fsub` | reg1, reg2 | r0 = reg1 - reg2 (float) |
-| `fmul` | reg1, reg2 | r0 = reg1 * reg2 (float) |
-| `fdiv` | reg1, reg2 | r0 = reg1 / reg2 (float) |
-| `fcmp` | reg1, reg2 | Compare floats (TODO: not yet implemented) |
+| Instruction | Operands   | Description                                |
+|-------------|------------|--------------------------------------------|
+| `fadd`      | reg1, reg2 | r0 = reg1 + reg2 (float)                   |
+| `fsub`      | reg1, reg2 | r0 = reg1 - reg2 (float)                   |
+| `fmul`      | reg1, reg2 | r0 = reg1 * reg2 (float)                   |
+| `fdiv`      | reg1, reg2 | r0 = reg1 / reg2 (float)                   |
+| `fcmp`      | reg1, reg2 | Compare floats (TODO: not yet implemented) |
 
 ### Bitwise Operations
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `and` | reg1, reg2 | r0 = reg1 & reg2 |
-| `or` | reg1, reg2 | r0 = reg1 \| reg2 |
-| `xor` | reg1, reg2 | r0 = reg1 ^ reg2 |
-| `not` | register | r0 = ~register |
-| `shl` | reg1, reg2 | r0 = reg1 << reg2 |
-| `shr` | reg1, reg2 | r0 = reg1 >> reg2 |
+| Instruction | Operands   | Description       |
+|-------------|------------|-------------------|
+| `and`       | reg1, reg2 | r0 = reg1 & reg2  |
+| `or`        | reg1, reg2 | r0 = reg1 \| reg2 |
+| `xor`       | reg1, reg2 | r0 = reg1 ^ reg2  |
+| `not`       | register   | r0 = ~register    |
+| `shl`       | reg1, reg2 | r0 = reg1 << reg2 |
+| `shr`       | reg1, reg2 | r0 = reg1 >> reg2 |
 
 ### Comparison and Control Flow
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `icmp` | reg1, reg2 | Compare reg1 == reg2, set comparison flag |
-| `jmp` | @label | Unconditional jump to label |
-| `je` | @label | Jump if equal (comparison flag true) |
-| `jne` | @label | Jump if not equal (comparison flag false) |
-| `jg` | @label | Jump if greater (TODO: not yet implemented) |
-| `jl` | @label | Jump if less (TODO: not yet implemented) |
-| `jge` | @label | Jump if greater or equal (TODO: not yet implemented) |
-| `jle` | @label | Jump if less or equal (TODO: not yet implemented) |
+| Instruction | Operands   | Description                                          |
+|-------------|------------|------------------------------------------------------|
+| `icmp`      | reg1, reg2 | Compare reg1 == reg2, set comparison flag            |
+| `jmp`       | @label     | Unconditional jump to label                          |
+| `je`        | @label     | Jump if equal (comparison flag true)                 |
+| `jne`       | @label     | Jump if not equal (comparison flag false)            |
+| `jg`        | @label     | Jump if greater (TODO: not yet implemented)          |
+| `jl`        | @label     | Jump if less (TODO: not yet implemented)             |
+| `jge`       | @label     | Jump if greater or equal (TODO: not yet implemented) |
+| `jle`       | @label     | Jump if less or equal (TODO: not yet implemented)    |
 
 ### Function Calls
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `call` | function_name | Call CAS function |
-| `callx` | function_name | Call external (C++) function |
-| `ret` | - | Return from function |
+| Instruction | Operands      | Description                  |
+|-------------|---------------|------------------------------|
+| `call`      | function_name | Call CAS function            |
+| `callx`     | function_name | Call external (C++) function |
+| `ret`       | -             | Return from function         |
 
 ### Type Conversion
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `cast` | type, register | Cast register to type ("int", "float", "ptr") |
+| Instruction | Operands       | Description                                   |
+|-------------|----------------|-----------------------------------------------|
+| `cast`      | type, register | Cast register to type ("int", "float", "ptr") |
 
 ### Local Variables
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `local.get` | local_id | r0 = locals[local_id] |
+| Instruction | Operands           | Description                 |
+|-------------|--------------------|-----------------------------|
+| `local.get` | local_id           | r0 = locals[local_id]       |
 | `local.set` | local_id, register | locals[local_id] = register |
 
 ### Memory Operations
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `load` | dest, src | Load from memory (TODO: not yet implemented) |
-| `store` | dest, src | Store to memory (TODO: not yet implemented) |
+| Instruction | Operands  | Description                                  |
+|-------------|-----------|----------------------------------------------|
+| `load`      | dest, src | Load from memory (TODO: not yet implemented) |
+| `store`     | dest, src | Store to memory (TODO: not yet implemented)  |
 
 ### Miscellaneous
 
-| Instruction | Operands | Description |
-|-------------|----------|-------------|
-| `halt` | - | Stop program execution |
-| `nop` | - | No operation |
+| Instruction | Operands | Description            |
+|-------------|----------|------------------------|
+| `halt`      | -        | Stop program execution |
+| `nop`       | -        | No operation           |
 
 ---
 
@@ -296,6 +305,7 @@ loop_start:
 ## Error Handling
 
 The assembler will report errors with line numbers for:
+
 - Undefined labels
 - Duplicate function/label definitions
 - Invalid operand syntax
@@ -317,6 +327,7 @@ asm.write_bytecode("program.cbc");
 ```
 
 **Bytecode Structure:**
+
 - **String table** - Deduplicated strings for efficient storage
 - **Function definitions** - Each function's operations and metadata
 - **Local variable storage** - Variable slots per function
@@ -326,7 +337,8 @@ asm.write_bytecode("program.cbc");
 
 ## Notes
 
-- The assembler provides helpful warnings for unadorned identifiers (can be disabled with `show_better_practice = false`)
+- The assembler provides helpful warnings for unadorned identifiers (can be disabled with
+  `show_better_practice = false`)
 - Label addresses are resolved during assembly
 - All numeric literals must use the `$` prefix
 - All label references must use the `@` prefix

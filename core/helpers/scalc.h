@@ -7,8 +7,8 @@
 // Compile Time Expression Evaluator
 class CTEE {
     size_t pos{};
-    std::string& s;
-    std::unordered_map<std::string, double>& ctx; // label addresses and etc.
+    std::string &s;
+    std::unordered_map<std::string, double> &ctx; // label addresses and etc.
 
 
     [[nodiscard]] char peek() const { return pos < s.size() ? s[pos] : '\0'; }
@@ -46,7 +46,10 @@ class CTEE {
             if (get() != ')') throw std::runtime_error("Missing ')'");
             return val;
         }
-        if (peek() == '-') { get(); return -factor(); }
+        if (peek() == '-') {
+            get();
+            return -factor();
+        }
         throw std::runtime_error("Unexpected character");
     }
 
@@ -80,26 +83,26 @@ class CTEE {
         return val;
     }
 
-
 public:
     inline static std::string dummy_str;
     inline static std::unordered_map<std::string, double> dummy_ctx;
 
-    double eval(const std::string& str, std::unordered_map<std::string, double>& context) {
+    double eval(const std::string &str, std::unordered_map<std::string, double> &context) {
         s = str;
         pos = 0;
         ctx = context;
         return expr();
     }
 
-    CTEE(std::string& str, std::unordered_map<std::string, double>& context)
-        : pos(0), s(str), ctx(context) {}
+    CTEE(std::string &str, std::unordered_map<std::string, double> &context)
+        : pos(0), s(str), ctx(context) {
+    }
 
     CTEE()
-        : pos(0), s(dummy_str), ctx(dummy_ctx) {}
+        : pos(0), s(dummy_str), ctx(dummy_ctx) {
+    }
 
     ~CTEE() = default;
-
 };
 
 

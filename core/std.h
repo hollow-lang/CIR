@@ -11,7 +11,7 @@ namespace cir_std {
         std::cout << std::endl;
     }
 
-    void init_std(CIR& cir) {
+    void init_std(CIR &cir) {
         cir.set_extern_fn("std.print", print);
     }
 }

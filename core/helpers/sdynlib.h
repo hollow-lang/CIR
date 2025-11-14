@@ -4,17 +4,17 @@
 #include <string>
 
 #if defined(_WIN32)
-  #include <windows.h>
-  using LibHandle = HMODULE;
+#include <windows.h>
+using LibHandle = HMODULE;
 #else
 #include <dlfcn.h>
-using LibHandle = void*;
+using LibHandle = void *;
 #endif
 
 struct DynLib {
     LibHandle handle = nullptr;
 
-    bool load(const std::string& path) {
+    bool load(const std::string &path) {
 #if defined(_WIN32)
         handle = LoadLibraryA(path.c_str());
 #else
@@ -34,7 +34,7 @@ struct DynLib {
     }
 
     template<typename T>
-    T get(const std::string& symbol) {
+    T get(const std::string &symbol) {
 #if defined(_WIN32)
         return reinterpret_cast<T>(GetProcAddress(handle, symbol.c_str()));
 #else

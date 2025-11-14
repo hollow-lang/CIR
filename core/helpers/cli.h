@@ -32,25 +32,26 @@ class Logger {
     int level;
 
 public:
-    explicit Logger(int log_level) : level(log_level) {}
+    explicit Logger(int log_level) : level(log_level) {
+    }
 
-    void info(const std::string& msg) const {
+    void info(const std::string &msg) const {
         if (level >= 1) {
             std::cout << "[INFO] " << msg << std::endl;
         }
     }
 
-    void debug(const std::string& msg) const {
+    void debug(const std::string &msg) const {
         if (level >= 2) {
             std::cout << "[DEBUG] " << msg << std::endl;
         }
     }
 
-    static void error(const std::string& msg) {
+    static void error(const std::string &msg) {
         std::cerr << "[ERROR] " << msg << std::endl;
     }
 
-    void success(const std::string& msg) const {
+    void success(const std::string &msg) const {
         if (level >= 1) {
             std::cout << "[SUCCESS] " << msg << std::endl;
         }
@@ -65,14 +66,14 @@ class CliTool {
     void print_stack() {
         std::cout << "Stack Contents: " << std::endl;
 
-        auto& stack = cir.get_stack();
+        auto &stack = cir.get_stack();
         if (stack.empty()) {
             std::cout << "(empty)" << std::endl;
         } else {
             for (size_t i = 0; i < stack.size(); ++i) {
                 std::cout << "[" << std::setw(2) << i << "] ";
                 stack[i].print();
-                std::cout << std::string(20 - std::min(20, (int)std::to_string(i).length()), ' ') << std::endl;
+                std::cout << std::string(20 - std::min(20, (int) std::to_string(i).length()), ' ') << std::endl;
             }
         }
     }
@@ -83,9 +84,8 @@ class CliTool {
         for (int i = 0; i < std::min(8, Config::REGISTER_COUNT); ++i) {
             std::cout << "  r" << i << ": ";
             cir.getr(i).print();
-            std::cout << std::string(23, ' ')  << std::endl;
+            std::cout << std::string(23, ' ') << std::endl;
         }
-
     }
 
     bool validate_input_file() {
@@ -118,12 +118,11 @@ class CliTool {
 
             auto file_size = fs::file_size(config.output_file);
             logger.success("Bytecode written to: " + config.output_file +
-                          " (" + std::to_string(file_size) + " bytes)");
+                           " (" + std::to_string(file_size) + " bytes)");
 
             cir.load_program(assembler.get_program());
             return true;
-
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             logger.error("Compilation failed: " + std::string(e.what()));
             return false;
         }
@@ -149,8 +148,7 @@ class CliTool {
             cir.from_bytecode(bytecode);
             logger.success("Bytecode loaded successfully");
             return true;
-
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             logger.error("Failed to load bytecode: " + std::string(e.what()));
             return false;
         }
@@ -182,15 +180,15 @@ class CliTool {
             }
 
             return true;
-
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             logger.error("Execution failed: " + std::string(e.what()));
             return false;
         }
     }
 
 public:
-    explicit CliTool(const CliConfig& cfg) : config(cfg), logger(cfg.log_level) {}
+    explicit CliTool(const CliConfig &cfg) : config(cfg), logger(cfg.log_level) {
+    }
 
     int run() {
         logger.debug("Starting CLI tool");
@@ -210,7 +208,7 @@ public:
         }
 
         if (!config.skip_run) {
-            for (auto& dl : config.dls) {
+            for (auto &dl: config.dls) {
                 auto init_lib_fn = dl.get<CIR_InitLibFn>("cir_init_lib");
                 init_lib_fn(cir);
             }
@@ -254,7 +252,7 @@ private:
     }
 
 public:
-    CliConfig parse(int argc, char** argv) {
+    CliConfig parse(int argc, char **argv) {
         if (argc < 1) {
             throw std::runtime_error("Invalid argument count");
         }
@@ -269,7 +267,7 @@ public:
         std::vector<std::string> args(argv + 1, argv + argc);
 
         for (size_t i = 0; i < args.size(); ++i) {
-            const auto& arg = args[i];
+            const auto &arg = args[i];
 
             if (arg == "-h" || arg == "--help") {
                 print_help();

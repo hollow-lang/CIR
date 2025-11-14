@@ -15,9 +15,10 @@
 class Assembler {
 public:
     bool show_better_practice = true;
+
 private:
     std::unordered_map<std::string, OpType> opcode_map;
-    std::unordered_map<std::string, std::unordered_map<std::string, size_t>> labels;
+    std::unordered_map<std::string, std::unordered_map<std::string, size_t> > labels;
     std::unordered_set<std::string> forward_label_refs;
     Program program;
     std::string current_function;
@@ -26,7 +27,8 @@ private:
     CTEE ctee{};
 
 
-    void init_opcode_map() { // TODO: maybe add short description
+    void init_opcode_map() {
+        // TODO: maybe add short description
         opcode_map["mov"] = OpType::Mov;
         opcode_map["push"] = OpType::Push;
         opcode_map["pushr"] = OpType::PushReg;
@@ -70,7 +72,7 @@ private:
         opcode_map["local.set"] = OpType::LocalSet;
     }
 
-    std::string trim(const std::string& str) {
+    std::string trim(const std::string &str) {
         size_t start = 0;
         while (start < str.size() && std::isspace(str[start])) start++;
 
@@ -80,7 +82,7 @@ private:
         return str.substr(start, end - start);
     }
 
-    std::vector<std::string> split(const std::string& str, char delim) {
+    std::vector<std::string> split(const std::string &str, char delim) {
         std::vector<std::string> tokens;
         std::stringstream ss(str);
         std::string token;
@@ -95,7 +97,7 @@ private:
         return tokens;
     }
 
-    bool looks_like_number(const std::string& str) {
+    bool looks_like_number(const std::string &str) {
         if (str.empty()) return false;
 
         size_t start = 0;
@@ -137,8 +139,8 @@ private:
         return true;
     }
 
-    Word parse_operand(const std::string& operand, bool is_jump = false) {
-        (void)is_jump;
+    Word parse_operand(const std::string &operand, bool is_jump = false) {
+        (void) is_jump;
         std::string op = trim(operand);
 
         // NOTE: returns double
@@ -169,7 +171,7 @@ private:
             int reg_num = std::stoi(op.substr(1));
             if (reg_num < 0 || reg_num >= Config::REGISTER_COUNT) {
                 throw std::runtime_error("Invalid register number r" + std::to_string(reg_num) +
-                                       " (valid range: r0-r" + std::to_string(Config::REGISTER_COUNT - 1) + ")");
+                                         " (valid range: r0-r" + std::to_string(Config::REGISTER_COUNT - 1) + ")");
             }
             return Word::from_reg(reg_num);
         }
@@ -180,12 +182,23 @@ private:
             for (size_t i = 0; i < str.size(); i++) {
                 if (str[i] == '\\' && i + 1 < str.size()) {
                     switch (str[i + 1]) {
-                        case 'n': unescaped += '\n'; i++; break;
-                        case 't': unescaped += '\t'; i++; break;
-                        case 'r': unescaped += '\r'; i++; break;
-                        case '\\': unescaped += '\\'; i++; break;
-                        case '"': unescaped += '"'; i++; break;
-                        default: unescaped += str[i]; break;
+                        case 'n': unescaped += '\n';
+                            i++;
+                            break;
+                        case 't': unescaped += '\t';
+                            i++;
+                            break;
+                        case 'r': unescaped += '\r';
+                            i++;
+                            break;
+                        case '\\': unescaped += '\\';
+                            i++;
+                            break;
+                        case '"': unescaped += '"';
+                            i++;
+                            break;
+                        default: unescaped += str[i];
+                            break;
                     }
                 } else {
                     unescaped += str[i];
@@ -257,13 +270,20 @@ private:
             char c = op[1];
             if (op[1] == '\\' && op.size() >= 4) {
                 switch (op[2]) {
-                    case 'n': c = '\n'; break;
-                    case 't': c = '\t'; break;
-                    case 'r': c = '\r'; break;
-                    case '0': c = '\0'; break;
-                    case '\\': c = '\\'; break;
-                    case '\'': c = '\''; break;
-                    default: c = op[2]; break;
+                    case 'n': c = '\n';
+                        break;
+                    case 't': c = '\t';
+                        break;
+                    case 'r': c = '\r';
+                        break;
+                    case '0': c = '\0';
+                        break;
+                    case '\\': c = '\\';
+                        break;
+                    case '\'': c = '\'';
+                        break;
+                    default: c = op[2];
+                        break;
                 }
             }
             return Word::from_int(static_cast<int64_t>(c));
@@ -273,19 +293,21 @@ private:
             throw std::runtime_error("Numeric literal '" + op + "' must be prefixed with '$' (e.g., $" + op + ")");
         }
 
-        if (show_better_practice) std::cerr << "Note (line " << line_number << "): Operand '" << op << "' is being treated as a plain string.\n"
-          << "Mandatory prefixes:\n"
-          << "  - Numbers must start with $ (e.g., $123, $0xFF, $0b101)\n"
-          << "  - Labels must start with @ (e.g., @loop_start)\n"
-          << "  - Registers must be r0-r" << (Config::REGISTER_COUNT - 1) << "\n"
-          << "  - Strings:   \"text\"\n"
-          << "Optional for readability:\n"
-          << "  - IDs:       #name\n" << std::endl;
+        if (show_better_practice)
+            std::cerr << "Note (line " << line_number << "): Operand '" << op <<
+                    "' is being treated as a plain string.\n"
+                    << "Mandatory prefixes:\n"
+                    << "  - Numbers must start with $ (e.g., $123, $0xFF, $0b101)\n"
+                    << "  - Labels must start with @ (e.g., @loop_start)\n"
+                    << "  - Registers must be r0-r" << (Config::REGISTER_COUNT - 1) << "\n"
+                    << "  - Strings:   \"text\"\n"
+                    << "Optional for readability:\n"
+                    << "  - IDs:       #name\n" << std::endl;
 
         return Word::from_string_owned(op);
     }
 
-    void validate_instruction(const Op& op, const std::string& opcode) {
+    void validate_instruction(const Op &op, const std::string &opcode) {
         switch (op.type) {
             case OpType::Halt:
             case OpType::Nop:
@@ -326,8 +348,6 @@ private:
             case OpType::Gte:
             case OpType::Lt:
             case OpType::Lte:
-            case OpType::Load:
-            case OpType::Store:
             case OpType::FAdd:
             case OpType::FSub:
             case OpType::FMul:
@@ -339,10 +359,18 @@ private:
                     throw std::runtime_error("Instruction '" + opcode + "' requires 2 operands");
                 }
                 break;
+            case OpType::Load:
+            case OpType::Store:
+                if (op.args[0].type == WordType::Null ||
+                    op.args[1].type == WordType::Null ||
+                    op.args[2].type == WordType::Null) {
+                    throw std::runtime_error("Instruction '" + opcode + "' requires 3 operands");
+                }
+                break;
         }
     }
 
-    void assemble_line(const std::string& line, Function& func) {
+    void assemble_line(const std::string &line, Function &func) {
         std::string cleaned = trim(line);
 
         size_t comment_pos = cleaned.find(';');
@@ -390,7 +418,7 @@ private:
 
             if (operands.size() > Config::OpArgCount) {
                 throw std::runtime_error("Too many operands for instruction '" + opcode +
-                                       "' (max " + std::to_string(Config::OpArgCount) + ")");
+                                         "' (max " + std::to_string(Config::OpArgCount) + ")");
             }
 
             for (size_t i = 0; i < operands.size() && i < Config::OpArgCount; i++) {
@@ -403,7 +431,7 @@ private:
     }
 
     void verify_labels() {
-        for (const auto& ref : forward_label_refs) {
+        for (const auto &ref: forward_label_refs) {
             size_t colon_pos = ref.find(':');
             std::string func_name = ref.substr(0, colon_pos);
             std::string label = ref.substr(colon_pos + 1);
@@ -429,14 +457,14 @@ public:
         init_opcode_map();
     }
 
-    void assemble_file(const std::string& filename) {
+    void assemble_file(const std::string &filename) {
         std::ifstream file(filename);
         if (!file.is_open()) {
             throw std::runtime_error("Failed to open file: " + filename);
         }
 
         std::string line;
-        Function* current_func = nullptr;
+        Function *current_func = nullptr;
         line_number = 0;
 
         while (std::getline(file, line)) {
@@ -455,7 +483,7 @@ public:
 
                 if (program.functions.find(current_function) != program.functions.end()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
-                                           ": Duplicate function definition: " + current_function);
+                                             ": Duplicate function definition: " + current_function);
                 }
 
                 program.functions[current_function] = Function();
@@ -467,7 +495,7 @@ public:
             if (cleaned == ".end") {
                 if (current_func == nullptr) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
-                                           ": .end without matching .fn");
+                                             ": .end without matching .fn");
                 }
                 current_func = nullptr;
                 current_function.clear();
@@ -482,12 +510,12 @@ public:
             if (current_func != nullptr) {
                 try {
                     assemble_line(cleaned, *current_func);
-                } catch (const std::exception& e) {
+                } catch (const std::exception &e) {
                     throw std::runtime_error("Line " + std::to_string(line_number) + ": " + e.what());
                 }
             } else {
                 throw std::runtime_error("Line " + std::to_string(line_number) +
-                                       ": Instruction outside function: " + cleaned);
+                                         ": Instruction outside function: " + cleaned);
             }
         }
 
@@ -501,10 +529,10 @@ public:
         verify_labels();
     }
 
-    void assemble_string(const std::string& source) {
+    void assemble_string(const std::string &source) {
         std::istringstream stream(source);
         std::string line;
-        Function* current_func = nullptr;
+        Function *current_func = nullptr;
         line_number = 0;
 
         while (std::getline(stream, line)) {
@@ -523,7 +551,7 @@ public:
 
                 if (program.functions.find(current_function) != program.functions.end()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
-                                           ": Duplicate function definition: " + current_function);
+                                             ": Duplicate function definition: " + current_function);
                 }
 
                 program.functions[current_function] = Function();
@@ -535,7 +563,7 @@ public:
             if (cleaned == ".end") {
                 if (current_func == nullptr) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
-                                           ": .end without matching .fn");
+                                             ": .end without matching .fn");
                 }
                 current_func = nullptr;
                 current_function.clear();
@@ -545,7 +573,7 @@ public:
             if (current_func != nullptr) {
                 try {
                     assemble_line(cleaned, *current_func);
-                } catch (const std::exception& e) {
+                } catch (const std::exception &e) {
                     throw std::runtime_error("Line " + std::to_string(line_number) + ": " + e.what());
                 }
             }
@@ -563,7 +591,7 @@ public:
         return program;
     }
 
-    void write_bytecode(const std::string& filename) {
+    void write_bytecode(const std::string &filename) {
         CIR cir;
         cir.load_program(program);
         std::vector<uint8_t> bytecode = cir.to_bytecode();
@@ -573,7 +601,7 @@ public:
             throw std::runtime_error("Failed to open output file: " + filename);
         }
 
-        file.write(reinterpret_cast<char*>(bytecode.data()),
+        file.write(reinterpret_cast<char *>(bytecode.data()),
                    static_cast<std::streamsize>(bytecode.size()));
         file.close();
     }
