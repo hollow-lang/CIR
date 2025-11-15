@@ -12,7 +12,6 @@
     mov $10, r0
     mov $10, r1
     iadd r0, r1
-    ret
 .end
 
 .fn test::mov_registers inline

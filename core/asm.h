@@ -24,9 +24,9 @@ struct OpCodeInfo {
 class Assembler {
 public:
     bool show_better_practice = true;
+    std::unordered_map<std::string, OpCodeInfo> opcode_map;
 
 private:
-    std::unordered_map<std::string, OpCodeInfo> opcode_map;
     std::unordered_map<std::string, std::unordered_map<std::string, size_t> > labels;
     std::unordered_map<std::string, FunctionAttributes> function_attributes;
     std::unordered_set<std::string> forward_label_refs;

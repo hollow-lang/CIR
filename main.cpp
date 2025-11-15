@@ -1,10 +1,10 @@
-// TODO: test -d
 #include <iostream>
 #include <fstream>
 
 #include <filesystem>
 
-#define CIR_IMPLEMENTATION
+// NOTE: No need for implementation we will link with .so
+// #define CIR_IMPLEMENTATION
 #include "core/helpers/cli.h"
 
 

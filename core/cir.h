@@ -1,6 +1,6 @@
-// add memory functions (alloc)
-
+#ifndef CIR_AS_LIB
 #pragma once
+#endif
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 #include "config.h"
 #include "helpers/heap.h"
@@ -314,7 +315,8 @@ public:
 void Word::print() const {
     switch (type) {
         case WordType::Integer:
-            std::cout << as_int();
+            if (has_flag(WordFlag::Register)) std::cout << "r" << as_int();
+            else std::cout << as_int();
             break;
         case WordType::Float:
             std::cout << std::fixed << std::setprecision(2) << as_float();
