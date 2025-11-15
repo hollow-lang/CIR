@@ -1,13 +1,20 @@
-.extern example
-
 .fn main
-    mov $10, r0
-    mov $10, r1
-    iadd r0, r1
-
-    mov r0, r1
-    mov r1, r0
+    call test::add
+    call test::mov_registers
 
     callx std.print
 .end
 
+.fn test::add inline
+    mov $10, r0
+    mov $10, r1
+    iadd r0, r1
+.end
+
+.fn test::mov_registers inline
+    mov r0, r1
+    mov r1, r0
+.end
+
+.fn aadadadadad inline
+.end

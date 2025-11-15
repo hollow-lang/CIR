@@ -10,19 +10,19 @@ class Heap {
     struct Block {
         size_t size;
         bool is_free;
-        Block* next;
-        Block* prev;
+        Block *next;
+        Block *prev;
     };
 
     std::vector<uint8_t> heap;
-    Block* free_list{};
+    Block *free_list{};
 
     size_t align(size_t size) const {
         return (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
     }
 
-    Block* findFreeBlock(size_t size) {
-        Block* current = free_list;
+    Block *findFreeBlock(size_t size) {
+        Block *current = free_list;
         while (current) {
             if (current->is_free && current->size >= size) {
                 return current;
@@ -32,10 +32,10 @@ class Heap {
         return nullptr;
     }
 
-    void splitBlock(Block* block, size_t size) {
+    void splitBlock(Block *block, size_t size) {
         if (block->size >= size + sizeof(Block) + ALIGNMENT) {
-            Block* new_block = reinterpret_cast<Block*>(
-                reinterpret_cast<uint8_t*>(block) + sizeof(Block) + size
+            Block *new_block = reinterpret_cast<Block *>(
+                reinterpret_cast<uint8_t *>(block) + sizeof(Block) + size
             );
 
             new_block->size = block->size - size - sizeof(Block);
@@ -54,38 +54,38 @@ class Heap {
 
 public:
     explicit Heap(size_t heap_size) : heap(heap_size) {
-        free_list = reinterpret_cast<Block*>(heap.data());
+        free_list = reinterpret_cast<Block *>(heap.data());
         free_list->size = heap_size - sizeof(Block);
         free_list->is_free = true;
         free_list->next = nullptr;
         free_list->prev = nullptr;
     }
 
-    void* allocate(size_t size) {
+    void *allocate(size_t size) {
         if (size == 0) return nullptr;
 
         size = align(size);
-        Block* block = findFreeBlock(size);
+        Block *block = findFreeBlock(size);
 
         if (!block) return nullptr;
 
         splitBlock(block, size);
         block->is_free = false;
 
-        return reinterpret_cast<uint8_t*>(block) + sizeof(Block);
+        return reinterpret_cast<uint8_t *>(block) + sizeof(Block);
     }
 
-    static void deallocate(void* ptr) {
+    static void deallocate(void *ptr) {
         if (!ptr) return;
 
-        Block* block = reinterpret_cast<Block*>(
-            static_cast<uint8_t*>(ptr) - sizeof(Block)
+        Block *block = reinterpret_cast<Block *>(
+            static_cast<uint8_t *>(ptr) - sizeof(Block)
         );
         block->is_free = true;
     }
 
     void coalesce() const {
-        Block* current = free_list;
+        Block *current = free_list;
 
         while (current && current->next) {
             if (current->is_free && current->next->is_free) {
@@ -103,7 +103,7 @@ public:
 
     size_t getFreeMemory() const {
         size_t total = 0;
-        Block* current = free_list;
+        Block *current = free_list;
 
         while (current) {
             if (current->is_free) {

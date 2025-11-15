@@ -12,13 +12,23 @@
 #include "cir.h"
 #include "helpers/scalc.h"
 
+struct FunctionAttributes {
+    bool is_inline = false;
+};
+
+struct OpCodeInfo {
+    OpType type;
+    size_t arg_count;
+};
+
 class Assembler {
 public:
     bool show_better_practice = true;
 
 private:
-    std::unordered_map<std::string, OpType> opcode_map;
+    std::unordered_map<std::string, OpCodeInfo> opcode_map;
     std::unordered_map<std::string, std::unordered_map<std::string, size_t> > labels;
+    std::unordered_map<std::string, FunctionAttributes> function_attributes;
     std::unordered_set<std::string> forward_label_refs;
     Program program;
     std::string current_function;
@@ -26,50 +36,55 @@ private:
 
     CTEE ctee{};
 
-
     void init_opcode_map() {
-        // TODO: maybe add short description
-        opcode_map["mov"] = OpType::Mov;
-        opcode_map["push"] = OpType::Push;
-        opcode_map["pushr"] = OpType::PushReg;
-        opcode_map["pop"] = OpType::Pop;
-        opcode_map["iadd"] = OpType::IAdd;
-        opcode_map["isub"] = OpType::ISub;
-        opcode_map["imul"] = OpType::IMul;
-        opcode_map["idiv"] = OpType::IDiv;
-        opcode_map["imod"] = OpType::IMod;
-        opcode_map["and"] = OpType::IAnd;
-        opcode_map["or"] = OpType::IOr;
-        opcode_map["xor"] = OpType::IXor;
-        opcode_map["not"] = OpType::Not;
-        opcode_map["shl"] = OpType::Shl;
-        opcode_map["shr"] = OpType::Shr;
-        opcode_map["icmp"] = OpType::ICmp;
-        opcode_map["jmp"] = OpType::Jmp;
-        opcode_map["je"] = OpType::Je;
-        opcode_map["jne"] = OpType::Jne;
-        opcode_map["gt"] = OpType::Gt;
-        opcode_map["gte"] = OpType::Gte;
-        opcode_map["lt"] = OpType::Lt;
-        opcode_map["lte"] = OpType::Lte;
-        opcode_map["call"] = OpType::Call;
-        opcode_map["callx"] = OpType::CallExtern;
-        opcode_map["ret"] = OpType::Ret;
-        opcode_map["load"] = OpType::Load;
-        opcode_map["store"] = OpType::Store;
-        opcode_map["halt"] = OpType::Halt;
-        opcode_map["nop"] = OpType::Nop;
-        opcode_map["inc"] = OpType::Inc;
-        opcode_map["dec"] = OpType::Dec;
-        opcode_map["neg"] = OpType::Neg;
-        opcode_map["fadd"] = OpType::FAdd;
-        opcode_map["fsub"] = OpType::FSub;
-        opcode_map["fmul"] = OpType::FMul;
-        opcode_map["fdiv"] = OpType::FDiv;
-        opcode_map["fcmp"] = OpType::FCmp;
-        opcode_map["cast"] = OpType::Cast;
-        opcode_map["local.get"] = OpType::LocalGet;
-        opcode_map["local.set"] = OpType::LocalSet;
+        // 0 operands
+        opcode_map["halt"] = {OpType::Halt, 0};
+        opcode_map["nop"] = {OpType::Nop, 0};
+        opcode_map["ret"] = {OpType::Ret, 0};
+
+        // 1 operand
+        opcode_map["not"] = {OpType::Not, 1};
+        opcode_map["inc"] = {OpType::Inc, 1};
+        opcode_map["dec"] = {OpType::Dec, 1};
+        opcode_map["neg"] = {OpType::Neg, 1};
+        opcode_map["push"] = {OpType::Push, 1};
+        opcode_map["pushr"] = {OpType::PushReg, 1};
+        opcode_map["pop"] = {OpType::Pop, 1};
+        opcode_map["jmp"] = {OpType::Jmp, 1};
+        opcode_map["call"] = {OpType::Call, 1};
+        opcode_map["callx"] = {OpType::CallExtern, 1};
+        opcode_map["local.get"] = {OpType::LocalGet, 1};
+
+        // 2 operands
+        opcode_map["mov"] = {OpType::Mov, 2};
+        opcode_map["iadd"] = {OpType::IAdd, 2};
+        opcode_map["isub"] = {OpType::ISub, 2};
+        opcode_map["imul"] = {OpType::IMul, 2};
+        opcode_map["idiv"] = {OpType::IDiv, 2};
+        opcode_map["imod"] = {OpType::IMod, 2};
+        opcode_map["and"] = {OpType::IAnd, 2};
+        opcode_map["or"] = {OpType::IOr, 2};
+        opcode_map["xor"] = {OpType::IXor, 2};
+        opcode_map["shl"] = {OpType::Shl, 2};
+        opcode_map["shr"] = {OpType::Shr, 2};
+        opcode_map["icmp"] = {OpType::ICmp, 2};
+        opcode_map["je"] = {OpType::Je, 2};
+        opcode_map["jne"] = {OpType::Jne, 2};
+        opcode_map["gt"] = {OpType::Gt, 2};
+        opcode_map["gte"] = {OpType::Gte, 2};
+        opcode_map["lt"] = {OpType::Lt, 2};
+        opcode_map["lte"] = {OpType::Lte, 2};
+        opcode_map["fadd"] = {OpType::FAdd, 2};
+        opcode_map["fsub"] = {OpType::FSub, 2};
+        opcode_map["fmul"] = {OpType::FMul, 2};
+        opcode_map["fdiv"] = {OpType::FDiv, 2};
+        opcode_map["fcmp"] = {OpType::FCmp, 2};
+        opcode_map["cast"] = {OpType::Cast, 2};
+        opcode_map["local.set"] = {OpType::LocalSet, 2};
+
+        // 3 operands
+        opcode_map["load"] = {OpType::Load, 3};
+        opcode_map["store"] = {OpType::Store, 3};
     }
 
     std::string trim(const std::string &str) {
@@ -143,9 +158,8 @@ private:
         (void) is_jump;
         std::string op = trim(operand);
 
-        // NOTE: returns double
         if (op.starts_with("comp(") && op.ends_with(")")) {
-            std::string expr = op.substr(5, op.size() - 1);
+            std::string expr = op.substr(5, op.size() - 6);
             std::unordered_map<std::string, double> temp_ctx{
                 labels[current_function].begin(), labels[current_function].end()
             };
@@ -161,7 +175,6 @@ private:
             return Word::from_int(static_cast<int64_t>(labels[current_function][label]) - 1);
         }
 
-        // explicit id "#name"
         if (op[0] == '#') {
             std::string id = op.substr(1);
             return Word::from_string_owned(id);
@@ -307,68 +320,18 @@ private:
         return Word::from_string_owned(op);
     }
 
-    void validate_instruction(const Op &op, const std::string &opcode) {
-        switch (op.type) {
-            case OpType::Halt:
-            case OpType::Nop:
-            case OpType::Ret:
-                break;
+    void validate_instruction(const Op &op, const std::string &opcode, size_t expected_args) {
+        size_t provided_args = 0;
+        for (size_t i = 0; i < Config::OpArgCount; i++) {
+            if (op.args[i].type != WordType::Null) {
+                provided_args++;
+            }
+        }
 
-            case OpType::Not:
-            case OpType::Inc:
-            case OpType::Dec:
-            case OpType::Neg:
-            case OpType::Push:
-            case OpType::PushReg:
-            case OpType::Pop:
-            case OpType::Jmp:
-            case OpType::Call:
-            case OpType::CallExtern:
-            case OpType::LocalGet:
-            case OpType::Alloc:
-            case OpType::Free:
-                if (op.args[0].type == WordType::Null) {
-                    throw std::runtime_error("Instruction '" + opcode + "' requires 1 operand");
-                }
-                break;
-
-            case OpType::Mov:
-            case OpType::IAdd:
-            case OpType::ISub:
-            case OpType::IMul:
-            case OpType::IDiv:
-            case OpType::IMod:
-            case OpType::IAnd:
-            case OpType::IOr:
-            case OpType::IXor:
-            case OpType::Shl:
-            case OpType::Shr:
-            case OpType::ICmp:
-            case OpType::Je:
-            case OpType::Jne:
-            case OpType::Gt:
-            case OpType::Gte:
-            case OpType::Lt:
-            case OpType::Lte:
-            case OpType::FAdd:
-            case OpType::FSub:
-            case OpType::FMul:
-            case OpType::FDiv:
-            case OpType::FCmp:
-            case OpType::Cast:
-            case OpType::LocalSet:
-                if (op.args[0].type == WordType::Null || op.args[1].type == WordType::Null) {
-                    throw std::runtime_error("Instruction '" + opcode + "' requires 2 operands");
-                }
-                break;
-            case OpType::Load:
-            case OpType::Store:
-                if (op.args[0].type == WordType::Null ||
-                    op.args[1].type == WordType::Null ||
-                    op.args[2].type == WordType::Null) {
-                    throw std::runtime_error("Instruction '" + opcode + "' requires 3 operands");
-                }
-                break;
+        if (provided_args != expected_args) {
+            throw std::runtime_error("Instruction '" + opcode + "' requires " +
+                                     std::to_string(expected_args) + " operand(s), but " +
+                                     std::to_string(provided_args) + " provided");
         }
     }
 
@@ -405,8 +368,10 @@ private:
             throw std::runtime_error("Unknown opcode: " + original_opcode);
         }
 
+        const OpCodeInfo &opcode_info = opcode_map[opcode];
+
         Op op;
-        op.type = opcode_map[opcode];
+        op.type = opcode_info.type;
 
         for (size_t i = 0; i < Config::OpArgCount; i++) {
             op.args[i] = Word::from_null();
@@ -428,7 +393,7 @@ private:
             }
         }
 
-        validate_instruction(op, opcode);
+        validate_instruction(op, opcode, opcode_info.arg_count);
         func.ops.push_back(op);
     }
 
@@ -454,6 +419,73 @@ private:
         }
     }
 
+    void inline_functions() {
+        std::unordered_set<std::string> used_inline_functions;
+
+        for (auto &[func_name, func]: program.functions) {
+            std::vector<Op> new_ops;
+
+            for (const auto &op: func.ops) {
+                if (op.type == OpType::Call && op.args[0].has_flag(WordFlag::String)) {
+                    std::string called_func = (const char *) op.args[0].as_ptr();
+
+                    if (function_attributes.contains(called_func) &&
+                        function_attributes[called_func].is_inline) {
+                        if (!program.functions.contains(called_func)) {
+                            throw std::runtime_error("Cannot inline undefined function: " + called_func);
+                        }
+
+                        const auto &inline_func = program.functions[called_func];
+
+                        for (const auto &inline_op: inline_func.ops) {
+                            if (inline_op.type == OpType::Ret) {
+                                continue;
+                            }
+                            new_ops.push_back(inline_op);
+                        }
+
+                        used_inline_functions.insert(called_func);
+                    } else {
+                        new_ops.push_back(op);
+                    }
+                } else {
+                    new_ops.push_back(op);
+                }
+            }
+
+            func.ops = new_ops;
+        }
+
+        std::vector<std::string> functions_to_remove;
+        for (const auto &[func_name, attrs]: function_attributes) {
+            if (attrs.is_inline) {
+                functions_to_remove.push_back(func_name);
+            }
+        }
+
+        for (const auto &func_name: functions_to_remove) {
+            program.functions.erase(func_name);
+        }
+    }
+
+    FunctionAttributes parse_attributes(const std::string &attr_str) {
+        FunctionAttributes attrs;
+        std::vector<std::string> attr_list = split(attr_str, ' ');
+
+        for (const auto &attr: attr_list) {
+            std::string lower_attr = attr;
+            std::transform(lower_attr.begin(), lower_attr.end(), lower_attr.begin(), ::tolower);
+
+            if (lower_attr == "inline") {
+                attrs.is_inline = true;
+            } else {
+                throw std::runtime_error("Unknown function attribute: " + attr);
+            }
+        }
+
+        return attrs;
+    }
+
 public:
     Assembler() {
         init_opcode_map();
@@ -477,7 +509,20 @@ public:
 
             if (cleaned.find(".fn ") == 0) {
                 size_t name_start = 4;
-                current_function = trim(cleaned.substr(name_start));
+                std::string rest = trim(cleaned.substr(name_start));
+
+                size_t first_space = rest.find(' ');
+                std::string func_name;
+                std::string attrs_str;
+
+                if (first_space != std::string::npos) {
+                    func_name = rest.substr(0, first_space);
+                    attrs_str = trim(rest.substr(first_space + 1));
+                } else {
+                    func_name = rest;
+                }
+
+                current_function = func_name;
 
                 if (current_function.empty()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) + ": Function name cannot be empty");
@@ -486,6 +531,10 @@ public:
                 if (program.functions.find(current_function) != program.functions.end()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
                                              ": Duplicate function definition: " + current_function);
+                }
+
+                if (!attrs_str.empty()) {
+                    function_attributes[current_function] = parse_attributes(attrs_str);
                 }
 
                 program.functions[current_function] = Function();
@@ -529,6 +578,7 @@ public:
 
         verify_functions();
         verify_labels();
+        inline_functions();
     }
 
     void assemble_string(const std::string &source) {
@@ -545,7 +595,20 @@ public:
 
             if (cleaned.find(".fn ") == 0) {
                 size_t name_start = 4;
-                current_function = trim(cleaned.substr(name_start));
+                std::string rest = trim(cleaned.substr(name_start));
+
+                size_t first_space = rest.find(' ');
+                std::string func_name;
+                std::string attrs_str;
+
+                if (first_space != std::string::npos) {
+                    func_name = rest.substr(0, first_space);
+                    attrs_str = trim(rest.substr(first_space + 1));
+                } else {
+                    func_name = rest;
+                }
+
+                current_function = func_name;
 
                 if (current_function.empty()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) + ": Function name cannot be empty");
@@ -554,6 +617,10 @@ public:
                 if (program.functions.find(current_function) != program.functions.end()) {
                     throw std::runtime_error("Line " + std::to_string(line_number) +
                                              ": Duplicate function definition: " + current_function);
+                }
+
+                if (!attrs_str.empty()) {
+                    function_attributes[current_function] = parse_attributes(attrs_str);
                 }
 
                 program.functions[current_function] = Function();
@@ -587,6 +654,7 @@ public:
 
         verify_functions();
         verify_labels();
+        inline_functions();
     }
 
     Program get_program() {

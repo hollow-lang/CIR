@@ -193,6 +193,7 @@ struct Word {
     }
 };
 
+// TODO: pointer operations
 enum class OpType : uint8_t {
     Mov,
     Push, // Push value
@@ -691,11 +692,13 @@ void CIR::execute_op(Function &fn, Op op) {
 
         case OpType::Alloc: {
             dest = Word::from_ptr(heap.allocate(op.args[0].as_int()));
-        } break;
+        }
+        break;
 
         case OpType::Free: {
             heap.deallocate(getr(op.args[0].as_int()).as_ptr());
-        } break;
+        }
+        break;
 
         default: assert(0 && "wtf, this dont should happen.");
     }
