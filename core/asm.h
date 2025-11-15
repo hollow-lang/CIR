@@ -38,9 +38,9 @@ private:
         opcode_map["imul"] = OpType::IMul;
         opcode_map["idiv"] = OpType::IDiv;
         opcode_map["imod"] = OpType::IMod;
-        opcode_map["and"] = OpType::And;
-        opcode_map["or"] = OpType::Or;
-        opcode_map["xor"] = OpType::Xor;
+        opcode_map["and"] = OpType::IAnd;
+        opcode_map["or"] = OpType::IOr;
+        opcode_map["xor"] = OpType::IXor;
         opcode_map["not"] = OpType::Not;
         opcode_map["shl"] = OpType::Shl;
         opcode_map["shr"] = OpType::Shr;
@@ -325,6 +325,8 @@ private:
             case OpType::Call:
             case OpType::CallExtern:
             case OpType::LocalGet:
+            case OpType::Alloc:
+            case OpType::Free:
                 if (op.args[0].type == WordType::Null) {
                     throw std::runtime_error("Instruction '" + opcode + "' requires 1 operand");
                 }
@@ -336,9 +338,9 @@ private:
             case OpType::IMul:
             case OpType::IDiv:
             case OpType::IMod:
-            case OpType::And:
-            case OpType::Or:
-            case OpType::Xor:
+            case OpType::IAnd:
+            case OpType::IOr:
+            case OpType::IXor:
             case OpType::Shl:
             case OpType::Shr:
             case OpType::ICmp:

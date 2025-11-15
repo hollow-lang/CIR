@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 #include "config.h"
+#include "helpers/heap.h"
 
 class CIR;
 
@@ -202,9 +203,9 @@ enum class OpType : uint8_t {
     IMul,
     IDiv,
     IMod,
-    And,
-    Or,
-    Xor,
+    IAnd,
+    IOr,
+    IXor,
     Not,
     Shl,
     Shr,
@@ -234,6 +235,8 @@ enum class OpType : uint8_t {
     Cast,
     LocalGet,
     LocalSet,
+    Alloc,
+    Free,
 };
 
 struct Op {
@@ -271,6 +274,7 @@ class CIR {
     std::unordered_map<std::string, CIR_ExternFn> extern_functions{};
     bool cmp_flag{false};
     Program program;
+    Heap heap{Config::HEAP_SIZE};
 
 public:
     Word pop();
@@ -353,6 +357,7 @@ Word &CIR::gets() {
 }
 
 // TODO: since we extended operands count now instructions that need to use register can use the 3operand
+// TODO: add expect for types
 void CIR::execute_op(Function &fn, Op op) {
     Word &dest = getr(0);
     switch (op.type) {
@@ -424,21 +429,21 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        case OpType::And: {
+        case OpType::IAnd: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
             dest = Word::from_int(a.as_int() & b.as_int());
         }
         break;
 
-        case OpType::Or: {
+        case OpType::IOr: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
             dest = Word::from_int(a.as_int() | b.as_int());
         }
         break;
 
-        case OpType::Xor: {
+        case OpType::IXor: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
             dest = Word::from_int(a.as_int() ^ b.as_int());
@@ -683,6 +688,14 @@ void CIR::execute_op(Function &fn, Op op) {
             memcpy(getr(op.args[0].as_int()).as_ptr(), getr(op.args[1].as_int()).as_ptr(), op.args[2].as_int());
         }
         break;
+
+        case OpType::Alloc: {
+            dest = Word::from_ptr(heap.allocate(op.args[0].as_int()));
+        } break;
+
+        case OpType::Free: {
+            heap.deallocate(getr(op.args[0].as_int()).as_ptr());
+        } break;
 
         default: assert(0 && "wtf, this dont should happen.");
     }
