@@ -439,6 +439,7 @@ private:
 
                         for (const auto &inline_op: inline_func.ops) {
                             if (inline_op.type == OpType::Ret) {
+                                std::cerr << "[WARNING] Inlined function '" + called_func + "' returns from its body! It was removed automatically" << std::endl;
                                 continue;
                             }
                             new_ops.push_back(inline_op);
