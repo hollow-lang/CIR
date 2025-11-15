@@ -1,0 +1,6 @@
+.extern example ; requires the runtime to have "example" extern function if it dont exists it just errors out
+
+.fn main
+    callx example
+.end
+

@@ -1,6 +1,7 @@
 #ifndef CIR_AS_LIB
 #pragma once
 #endif
+
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -194,7 +195,7 @@ struct Word {
     }
 };
 
-// TODO: pointer operations
+// TODO: pointer operations (PAdd, PSub)
 enum class OpType : uint8_t {
     Mov,
     Push, // Push value
@@ -359,7 +360,6 @@ Word &CIR::gets() {
     return stack.emplace_back();
 }
 
-// TODO: since we extended operands count now instructions that need to use register can use the 3operand
 // TODO: add expect for types
 void CIR::execute_op(Function &fn, Op op) {
     Word &dest = getr(0);

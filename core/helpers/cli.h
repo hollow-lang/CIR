@@ -233,7 +233,7 @@ private:
     void print_help() {
         std::cout << "Usage: " << config.program_name << " <input_file> [options]\n" << std::endl;
         std::cout << "Options:" << std::endl;
-        std::cout << "  -o, --output <file>      Specify output bytecode file (default: program.bin)" << std::endl;
+        std::cout << "  -o, --output <file>      Specify output bytecode file (default: program.cbc)" << std::endl;
         std::cout << "  -d, --dl <file>          Specify a Dynamic Library path" << std::endl;
         std::cout << "  -c, --no-compile         Skip compilation, run existing bytecode" << std::endl;
         std::cout << "  -r, --no-run             Compile only, don't execute" << std::endl;
@@ -247,8 +247,8 @@ private:
         std::cout << "  --version                Display version information" << std::endl;
         std::cout << "\nExamples:" << std::endl;
         std::cout << "  " << config.program_name << " program.asm" << std::endl;
-        std::cout << "  " << config.program_name << " program.asm -o out.bin -v" << std::endl;
-        std::cout << "  " << config.program_name << " -c -o program.bin --show-stack" << std::endl;
+        std::cout << "  " << config.program_name << " program.asm -o out.cbc -v" << std::endl;
+        std::cout << "  " << config.program_name << " -c -o program.cbc --show-stack" << std::endl;
     }
 
 public:
@@ -325,10 +325,10 @@ public:
 
         if (config.output_file.empty()) {
             if (config.skip_compile) {
-                config.output_file = "program.bin";
+                config.output_file = "program.cbc";
             } else {
                 fs::path input_path(config.input_file);
-                config.output_file = input_path.stem().string() + ".bin";
+                config.output_file = input_path.stem().string() + ".cbc";
             }
         }
 

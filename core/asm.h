@@ -51,9 +51,12 @@ private:
         opcode_map["pushr"] = {OpType::PushReg, 1};
         opcode_map["pop"] = {OpType::Pop, 1};
         opcode_map["jmp"] = {OpType::Jmp, 1};
+        opcode_map["je"] = {OpType::Je, 1};
+        opcode_map["jne"] = {OpType::Jne, 1};
         opcode_map["call"] = {OpType::Call, 1};
         opcode_map["callx"] = {OpType::CallExtern, 1};
         opcode_map["local.get"] = {OpType::LocalGet, 1};
+
 
         // 2 operands
         opcode_map["mov"] = {OpType::Mov, 2};
@@ -68,8 +71,6 @@ private:
         opcode_map["shl"] = {OpType::Shl, 2};
         opcode_map["shr"] = {OpType::Shr, 2};
         opcode_map["icmp"] = {OpType::ICmp, 2};
-        opcode_map["je"] = {OpType::Je, 2};
-        opcode_map["jne"] = {OpType::Jne, 2};
         opcode_map["gt"] = {OpType::Gt, 2};
         opcode_map["gte"] = {OpType::Gte, 2};
         opcode_map["lt"] = {OpType::Lt, 2};
@@ -439,7 +440,8 @@ private:
 
                         for (const auto &inline_op: inline_func.ops) {
                             if (inline_op.type == OpType::Ret) {
-                                std::cerr << "[WARNING] Inlined function '" + called_func + "' returns from its body! It was removed automatically" << std::endl;
+                                std::cerr << "[WARNING] Inlined function '" + called_func +
+                                        "' returns from its body! It was removed automatically" << std::endl;
                                 continue;
                             }
                             new_ops.push_back(inline_op);

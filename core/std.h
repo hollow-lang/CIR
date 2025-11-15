@@ -5,6 +5,8 @@
 
 #include "cir.h"
 
+// TODO: extend
+// TODO: format function
 namespace cir_std {
     void print(CIR &cir) {
         cir.getr(0).print();

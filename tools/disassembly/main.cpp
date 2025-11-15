@@ -11,7 +11,7 @@
 #include "core/asm.h"
 
 std::string op_type_to_string(OpType type, Assembler &assembler) {
-    for (auto i : assembler.opcode_map) {
+    for (auto i: assembler.opcode_map) {
         if (i.second.type == type) return i.first;
     }
     return "UnknownOpType";

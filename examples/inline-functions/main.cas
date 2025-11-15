@@ -1,0 +1,15 @@
+.fn main
+call something
+.end
+
+; This function dont exist in the resulting program its body will be inlined at the call position
+; so when a function has the "inline" attribute it dont needs a ret instruction
+; INFO: if it contains a ret operation it will remove it automatically
+.fn something inline
+    mov "Hello, World", r0
+    callx std.print
+.end
+
+; This function will just be removed because it is not used
+.fn some_unused_function inline
+.end

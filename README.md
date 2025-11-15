@@ -3,4 +3,4 @@
 - core contains the runtime
 
 TODO: write a optimizer
-TODO: write a disassembler
+TODO: write a debugger

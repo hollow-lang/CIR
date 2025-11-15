@@ -1,23 +1,6 @@
 .fn main
-    call test::add
-    call test::mov_registers
-
-    callx std.print
-.end
-
-; This function dont exist in the resulting program it will be inlined at the call position
-; so when a function has the "inline" attribute it dont needs a ret instruction
-; INFO: if it contains a ret operation it will remove it automatically
-.fn test::add inline
     mov $10, r0
     mov $10, r1
     iadd r0, r1
-.end
-
-.fn test::mov_registers inline
-    mov r0, r1
-    mov r1, r0
-.end
-
-.fn aadadadadad inline
+    callx std.print
 .end
