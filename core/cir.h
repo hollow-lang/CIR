@@ -18,6 +18,35 @@
 #include "config.h"
 #include "helpers/heap.h"
 
+#ifndef CIR_API
+    #ifdef CIR_STATIC
+        #define CIR_API
+    #elif defined(_WIN32) || defined(_WIN64)
+        #ifdef CIR_BUILD_DLL
+            #define CIR_API __declspec(dllexport)
+        #else
+            #define CIR_API __declspec(dllimport)
+        #endif
+    #elif defined(__GNUC__) && __GNUC__ >= 4
+        #ifdef CIR_BUILD_DLL
+            #define CIR_API __attribute__((visibility("default")))
+        #else
+            #define CIR_API
+        #endif
+    #else
+        #define CIR_API
+    #endif
+#endif
+
+#ifndef CIR_INTERNAL
+    #if defined(__GNUC__) && __GNUC__ >= 4
+        #define CIR_INTERNAL __attribute__((visibility("hidden")))
+    #else
+        #define CIR_INTERNAL
+    #endif
+#endif
+
+
 class CIR;
 
 using CIR_ExternFn = void (*)(CIR &vm);
@@ -269,6 +298,7 @@ public:
         bool running = true;
         std::vector<CallFrame> call_stack{};
     } state;
+    void optimize();
 };
 
 class CIR {
@@ -338,30 +368,30 @@ void Word::print() const {
     }
 }
 
-Word CIR::pop() {
+CIR_API Word CIR::pop() {
     Word top = stack.back();
     stack.pop_back();
     return top;
 }
 
-void CIR::push(const Word &value) {
+CIR_API void CIR::push(const Word &value) {
     stack.push_back(value);
 }
 
-void CIR::move(const Word &w, uint16_t i) {
+CIR_API void CIR::move(const Word &w, uint16_t i) {
     registers[i] = w;
 }
 
-Word &CIR::getr(uint16_t i) {
+CIR_API Word &CIR::getr(uint16_t i) {
     return registers[i];
 }
 
-Word &CIR::gets() {
+CIR_API Word &CIR::gets() {
     return stack.emplace_back();
 }
 
 // TODO: add expect for types
-void CIR::execute_op(Function &fn, Op op) {
+CIR_API void CIR::execute_op(Function &fn, Op op) {
     Word &dest = getr(0);
     switch (op.type) {
         case OpType::Mov: {
@@ -391,6 +421,7 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
         case OpType::IAdd: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -398,6 +429,7 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
         case OpType::ISub: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -405,6 +437,7 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
         case OpType::IMul: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -412,6 +445,7 @@ void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
         case OpType::IDiv: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -706,7 +740,7 @@ void CIR::execute_op(Function &fn, Op op) {
     }
 }
 
-void CIR::execute_function(const std::string &name) {
+CIR_API void CIR::execute_function(const std::string &name) {
     program.state.cf = name;
     program.state.running = true;
 
@@ -737,7 +771,7 @@ void CIR::execute_function(const std::string &name) {
     }
 }
 
-void CIR::check_externs() {
+CIR_API void CIR::check_externs() {
     for (const auto &req: program.required_externs) {
         if (!extern_functions.contains(req)) {
             throw std::runtime_error("Missing required external function: " + req);
@@ -745,12 +779,12 @@ void CIR::check_externs() {
     }
 }
 
-void CIR::execute_program() {
+CIR_API void CIR::execute_program() {
     check_externs();
     execute_function("main");
 }
 
-std::vector<uint8_t> CIR::to_bytecode() {
+CIR_API std::vector<uint8_t> CIR::to_bytecode() {
     std::vector<uint8_t> bytes;
 
     std::unordered_map<std::string, uint32_t> string_table;
@@ -878,7 +912,7 @@ std::vector<uint8_t> CIR::to_bytecode() {
     return bytes;
 }
 
-void CIR::from_bytecode(const std::vector<uint8_t> &bytes) {
+CIR_API void CIR::from_bytecode(const std::vector<uint8_t> &bytes) {
     size_t offset = 0;
     program = Program{};
 
@@ -1083,20 +1117,375 @@ void CIR::from_bytecode(const std::vector<uint8_t> &bytes) {
     }
 }
 
-void CIR::load_program(Program p) {
+CIR_API void CIR::load_program(Program p) {
     program = std::move(p);
 }
 
-Program &CIR::get_program() {
+CIR_API Program &CIR::get_program() {
     return program;
 }
 
-void CIR::set_extern_fn(std::string n, CIR_ExternFn f) {
+CIR_API void CIR::set_extern_fn(std::string n, CIR_ExternFn f) {
     extern_functions[n] = f;
 }
 
-std::vector<Word> &CIR::get_stack() {
+CIR_API std::vector<Word> &CIR::get_stack() {
     return stack;
 }
+
+CIR_API void Program::optimize() {
+    for (auto &[name, func]: functions) {
+        bool changed = true;
+        int pass = 0;
+        const int MAX_PASSES = 5;
+
+        while (changed && pass < MAX_PASSES) {
+            changed = false;
+            pass++;
+
+            std::vector<Op> optimized_ops;
+            optimized_ops.reserve(func.ops.size());
+
+            std::unordered_map<int64_t, Word> reg_values;
+
+            auto is_int_imm = [](const Word &w) -> bool {
+                return w.type == WordType::Integer && !w.has_flag(WordFlag::Register);
+            };
+            auto is_float_imm = [](const Word &w) -> bool {
+                return w.type == WordType::Float && !w.has_flag(WordFlag::Register);
+            };
+            auto is_register = [](const Word &w) -> bool {
+                return w.has_flag(WordFlag::Register);
+            };
+
+            for (size_t i = 0; i < func.ops.size(); ++i) {
+                const Op &op = func.ops[i];
+
+                if (op.type == OpType::Nop) {
+                    changed = true;
+                    continue;
+                }
+
+                if (op.type == OpType::Halt) {
+                    optimized_ops.push_back(op);
+                    bool has_jump_past = false;
+                    for (size_t j = 0; j < func.ops.size(); ++j) {
+                        const Op &check_op = func.ops[j];
+                        if (check_op.type == OpType::Jmp || check_op.type == OpType::Je ||
+                            check_op.type == OpType::Jne) {
+                            int64_t target = check_op.args[0].as_int();
+                            if (target > static_cast<int64_t>(i)) {
+                                has_jump_past = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!has_jump_past) {
+                        changed = true;
+                        break;
+                    }
+                    continue;
+                }
+
+                if ((op.type == OpType::IAdd || op.type == OpType::ISub || op.type == OpType::IMul ||
+                     op.type == OpType::IDiv || op.type == OpType::IMod ||
+                     op.type == OpType::IAnd || op.type == OpType::IOr || op.type == OpType::IXor ||
+                     op.type == OpType::Shl || op.type == OpType::Shr)) {
+
+                    Word arg0 = op.args[0];
+                    Word arg1 = op.args[1];
+
+                    if (is_register(arg0) && reg_values.count(arg0.as_int())) {
+                        arg0 = reg_values[arg0.as_int()];
+                    }
+                    if (is_register(arg1) && reg_values.count(arg1.as_int())) {
+                        arg1 = reg_values[arg1.as_int()];
+                    }
+
+                    if (is_int_imm(arg0) && is_int_imm(arg1)) {
+                        int64_t a = arg0.data.i;
+                        int64_t b = arg1.data.i;
+                        bool fold_ok = true;
+                        int64_t result = 0;
+
+                        switch (op.type) {
+                            case OpType::IAdd: result = a + b; break;
+                            case OpType::ISub: result = a - b; break;
+                            case OpType::IMul: result = a * b; break;
+                            case OpType::IDiv:
+                                if (b == 0) fold_ok = false;
+                                else result = a / b;
+                                break;
+                            case OpType::IMod:
+                                if (b == 0) fold_ok = false;
+                                else result = a % b;
+                                break;
+                            case OpType::IAnd: result = a & b; break;
+                            case OpType::IOr:  result = a | b; break;
+                            case OpType::IXor: result = a ^ b; break;
+                            case OpType::Shl:  result = a << b; break;
+                            case OpType::Shr:  result = a >> b; break;
+                            default: fold_ok = false; break;
+                        }
+
+                        if (fold_ok) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = Word::from_int(result);
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            reg_values[0] = Word::from_int(result);
+                            changed = true;
+                            continue;
+                        }
+                    }
+
+                    if (is_int_imm(arg1)) {
+                        int64_t b = arg1.data.i;
+
+                        if ((op.type == OpType::IAdd || op.type == OpType::ISub ||
+                             op.type == OpType::IOr || op.type == OpType::IXor) && b == 0) {
+                            if (is_register(arg0)) {
+                                Op mov{};
+                                mov.type = OpType::Mov;
+                                mov.args[0] = arg0;
+                                mov.args[1] = Word::from_int(0);
+                                optimized_ops.push_back(std::move(mov));
+                            } else {
+                                Op mov{};
+                                mov.type = OpType::Mov;
+                                mov.args[0] = arg0;
+                                mov.args[1] = Word::from_int(0);
+                                optimized_ops.push_back(std::move(mov));
+                            }
+                            changed = true;
+                            continue;
+                        }
+
+                        if ((op.type == OpType::IMul || op.type == OpType::IAnd) && b == 0) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = Word::from_int(0);
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            reg_values[0] = Word::from_int(0);
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::IMul && b == 1) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = arg0;
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::IMul && b > 0 && (b & (b - 1)) == 0) {
+                            int shift = 0;
+                            int64_t temp = b;
+                            while (temp > 1) { temp >>= 1; shift++; }
+
+                            Op shl{};
+                            shl.type = OpType::Shl;
+                            shl.args[0] = arg0;
+                            shl.args[1] = Word::from_int(shift);
+                            optimized_ops.push_back(std::move(shl));
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::IDiv && b == 1) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = arg0;
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::IAnd && b == -1) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = arg0;
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::IXor && is_register(arg0) && is_register(op.args[1]) &&
+                            arg0.as_int() == op.args[1].as_int()) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = Word::from_int(0);
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            reg_values[0] = Word::from_int(0);
+                            changed = true;
+                            continue;
+                        }
+                    }
+                }
+
+                if ((op.type == OpType::FAdd || op.type == OpType::FSub ||
+                     op.type == OpType::FMul || op.type == OpType::FDiv)) {
+
+                    Word arg0 = op.args[0];
+                    Word arg1 = op.args[1];
+
+                    if (is_register(arg0) && reg_values.count(arg0.as_int())) {
+                        arg0 = reg_values[arg0.as_int()];
+                    }
+                    if (is_register(arg1) && reg_values.count(arg1.as_int())) {
+                        arg1 = reg_values[arg1.as_int()];
+                    }
+
+                    if (is_float_imm(arg0) && is_float_imm(arg1)) {
+                        double a = arg0.data.f;
+                        double b = arg1.data.f;
+                        bool fold_ok = true;
+                        double result = 0.0;
+
+                        switch (op.type) {
+                            case OpType::FAdd: result = a + b; break;
+                            case OpType::FSub: result = a - b; break;
+                            case OpType::FMul: result = a * b; break;
+                            case OpType::FDiv:
+                                if (b == 0.0) fold_ok = false;
+                                else result = a / b;
+                                break;
+                            default: fold_ok = false; break;
+                        }
+
+                        if (fold_ok) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = Word::from_float(result);
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            reg_values[0] = Word::from_float(result);
+                            changed = true;
+                            continue;
+                        }
+                    }
+
+                    if (is_float_imm(arg1)) {
+                        double b = arg1.data.f;
+
+                        if ((op.type == OpType::FAdd || op.type == OpType::FSub) && b == 0.0) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = arg0;
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            changed = true;
+                            continue;
+                        }
+
+                        if ((op.type == OpType::FMul || op.type == OpType::FDiv) && b == 1.0) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = arg0;
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            changed = true;
+                            continue;
+                        }
+
+                        if (op.type == OpType::FMul && b == 0.0) {
+                            Op mov{};
+                            mov.type = OpType::Mov;
+                            mov.args[0] = Word::from_float(0.0);
+                            mov.args[1] = Word::from_int(0);
+                            optimized_ops.push_back(std::move(mov));
+                            reg_values[0] = Word::from_float(0.0);
+                            changed = true;
+                            continue;
+                        }
+                    }
+                }
+
+                if (op.type == OpType::Mov) {
+                    const Word &src = op.args[0];
+                    const Word &dst = op.args[1];
+
+                    if (is_register(src) && is_int_imm(dst)) {
+                        int64_t src_idx = src.as_int();
+                        int64_t dst_idx = dst.as_int();
+                        if (src_idx == dst_idx) {
+                            changed = true;
+                            continue;
+                        }
+                    }
+
+                    if (is_int_imm(dst)) {
+                        int64_t reg_idx = dst.as_int();
+                        if (!is_register(src)) {
+                            reg_values[reg_idx] = src;
+                        } else {
+                            reg_values.erase(reg_idx);
+                        }
+                    }
+                }
+
+                if ((op.type == OpType::Inc || op.type == OpType::Dec) &&
+                    i + 1 < func.ops.size()) {
+                    const Op &next = func.ops[i + 1];
+
+                    if ((op.type == OpType::Inc && next.type == OpType::Dec) ||
+                        (op.type == OpType::Dec && next.type == OpType::Inc)) {
+                        if (is_int_imm(op.args[0]) && is_int_imm(next.args[0]) &&
+                            op.args[0].as_int() == next.args[0].as_int()) {
+                            i++;
+                            changed = true;
+                            continue;
+                        }
+                    }
+                }
+
+                if (op.type == OpType::Mov && !is_register(op.args[0]) && is_int_imm(op.args[1]) &&
+                    i + 1 < func.ops.size()) {
+                    const Op &next = func.ops[i + 1];
+
+                    if ((next.type == OpType::IAdd || next.type == OpType::ISub) &&
+                        is_register(next.args[0]) && is_int_imm(next.args[1]) &&
+                        next.args[0].as_int() == op.args[1].as_int() &&
+                        !is_register(next.args[1])) {
+
+                        int64_t val1 = op.args[0].as_int();
+                        int64_t val2 = next.args[1].as_int();
+                        int64_t result = (next.type == OpType::IAdd) ? (val1 + val2) : (val1 - val2);
+
+                        Op mov{};
+                        mov.type = OpType::Mov;
+                        mov.args[0] = Word::from_int(result);
+                        mov.args[1] = op.args[1];
+                        optimized_ops.push_back(std::move(mov));
+                        reg_values[op.args[1].as_int()] = Word::from_int(result);
+                        i++;
+                        changed = true;
+                        continue;
+                    }
+                }
+
+                if (is_int_imm(op.args[1])) {
+                    int64_t reg_idx = op.args[1].as_int();
+                    if (op.type != OpType::Mov) {
+                        reg_values.erase(reg_idx);
+                    }
+                }
+
+                optimized_ops.push_back(op);
+            }
+
+            func.ops = std::move(optimized_ops);
+        }
+    }
+}
+
 
 #endif

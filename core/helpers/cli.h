@@ -1,3 +1,5 @@
+// TODO: add -O0 flag for no optimizations @enchancement
+
 #ifndef CLI_H
 #define CLI_H
 
@@ -113,6 +115,7 @@ class CliTool {
             assembler.assemble_file(config.input_file);
 
             logger.debug("Assembly completed, generating bytecode");
+
 
             assembler.write_bytecode(config.output_file);
 
