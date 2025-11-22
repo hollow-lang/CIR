@@ -2,5 +2,5 @@
     mov $10, r0
     mov $10, r1
     iadd r0, r1
-    callx std.print
+    ;callx std.print
 .end

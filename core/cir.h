@@ -216,11 +216,15 @@ struct Word {
     [[nodiscard]] void *as_ptr() const { return data.p; }
     [[nodiscard]] bool as_bool() const { return data.b; }
 
-    constexpr static void expect(Word &w, WordType type, const char *msg) {
-        if (w.type != type) {
-            throw std::runtime_error("Expected " + std::to_string(static_cast<int>(type)) + " but got " +
+    constexpr static void expect(Word &w, WordType etype, std::string msg = "No reason provided") {
+        if (w.type != etype) {
+            throw std::runtime_error("Expected " + std::to_string(static_cast<int>(etype)) + " but got " +
                                      std::to_string(static_cast<int>(w.type)) + ": " + msg);
         }
+    }
+
+    constexpr void expect(WordType etype) {
+        Word::expect(*this, etype);
     }
 };
 
