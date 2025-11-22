@@ -15,7 +15,6 @@ $(LIB_STATIC): core/cir.cpp core/cir.h
 	$(CXX) -c -o $(BUILD_DIR)/cir.o core/cir.cpp $(CFLAGS)
 	ar rcs $@ $(BUILD_DIR)/cir.o
 
-
 $(BUILD_DIR)/cas: main.cpp $(LIB_SHARED)
 	$(CXX) $(CFLAGS) -o $@ main.cpp $(LIB_SHARED)
 
