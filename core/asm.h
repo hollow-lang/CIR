@@ -582,7 +582,7 @@ public:
         verify_functions();
         verify_labels();
         inline_functions();
-        program.optimize(); // TODO @enhancement see at top
+        program.optimize();
     }
 
     void assemble_string(const std::string &source) {

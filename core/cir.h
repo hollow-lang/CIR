@@ -228,7 +228,8 @@ struct Word {
     }
 };
 
-// TODO: pointer operations (PAdd, PSub)
+// TODO: maybe combine all operations for different types into one and do diffrent things
+// TODO: pointer operations (PAdd, PSub) @enhancement see above
 enum class OpType : uint8_t {
     Mov,
     Push, // Push value
@@ -425,7 +426,7 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
         case OpType::IAdd: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -433,7 +434,7 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
         case OpType::ISub: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -441,7 +442,7 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
         case OpType::IMul: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -449,7 +450,7 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enchancement
+        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
         case OpType::IDiv: {
             Word &a = getr(op.args[0].as_int());
             Word &b = getr(op.args[1].as_int());
@@ -716,14 +717,49 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         break;
 
         case OpType::Load: {
-            void *d = getr(op.args[0].as_int()).as_ptr();
-            void *src = getr(op.args[1].as_int()).as_ptr();
-            if (!src) throw std::runtime_error("Load: source pointer is null");
-            if (!d) throw std::runtime_error("Load: destionation pointer is null");
+            Word::expect(op.args[2], WordType::Integer, "Load: size must be integer");
+            int64_t size = op.args[2].as_int();
 
-            memcpy(d, src, op.args[2].as_int());
+            void *src = nullptr;
+            if (op.args[1].has_flag(WordFlag::Register)) {
+                src = getr(op.args[1].as_int()).as_ptr();
+            } else {
+                src = op.args[1].as_ptr();
+            }
+
+            if (!src) throw std::runtime_error("Load: source pointer is null");
+
+            if (op.args[0].has_flag(WordFlag::Register)) {
+                Word &dest_reg = getr(op.args[0].as_int());
+
+                switch (size) {
+                    case 1:
+                        dest_reg = Word::from_int(*static_cast<uint8_t*>(src));
+                        break;
+                    case 2:
+                        dest_reg = Word::from_int(*static_cast<uint16_t*>(src));
+                        break;
+                    case 4:
+                        dest_reg = Word::from_int(*static_cast<uint32_t*>(src));
+                        break;
+                    case 8:
+                        dest_reg = Word::from_int(*static_cast<int64_t*>(src));
+                        break;
+                    default:
+                        throw std::runtime_error("Load: unsupported size for register load: " + std::to_string(size));
+                }
+            } else {
+                void *d = op.args[0].as_ptr();
+                if (!d) throw std::runtime_error("Load: destination pointer is null");
+
+                if (size == 1) {
+                    *static_cast<uint8_t*>(d) = *static_cast<uint8_t*>(src);
+                } else {
+                    memcpy(d, src, size);
+                }
+            }
         }
-        break;
+            break;
 
         case OpType::Store: {
             memcpy(getr(op.args[0].as_int()).as_ptr(), getr(op.args[1].as_int()).as_ptr(), op.args[2].as_int());
