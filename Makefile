@@ -24,10 +24,6 @@ $(BUILD_DIR)/discas: tools/disassembly/main.cpp $(LIB_SHARED)
 $(BUILD_DIR)/decbc: tools/debugger/main.cpp $(LIB_SHARED)
 	$(CXX) $(CFLAGS) -o $@ tools/debugger/main.cpp $(LIB_SHARED) -I.
 
-$(BUILD_DIR)/cbc2c: tools/cbc2c/main.cpp $(LIB_SHARED)
-	$(CXX) $(CFLAGS) -o $@ tools/cbc2c/main.cpp $(LIB_SHARED) -I.
-
-
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 

@@ -1,0 +1,7 @@
+- Unified Operand Syntax
+- Changed Operations
+- Removed cbc2c because i dont wanna implement it right now, but its planned to be added later.
+- Also removed the runtime_example file since it was a try to thing of a runtime for the resulting C++ code of cbc2c
+- refactored Word struct
+- Implemented many more operators
+- Removed Optimizer but planned to be added later (because it was to much for such a UOSC (Unified Operand Syntax Change + Operation Combination and improvement))

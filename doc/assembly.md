@@ -196,7 +196,8 @@ Assembled programs are compiled to a bytecode format (`.cbc` files):
 
 **Bytecode Structure:**
 
-- **String table** - Deduplicated strings for efficient storage (on small programs adds overhead but this is a only a small tradeoff)
+- **String table** - Deduplicated strings for efficient storage (on small programs adds overhead but this is a only a
+  small tradeoff)
 - **Required external functions** - External functions referenced by `.extern`
 - **Function definitions** - Each function's operations and metadata, locals
 

@@ -1,11 +1,13 @@
+// TODO: implement syscall (maybe via registers?)
+
 #ifndef CIR_AS_LIB
 #pragma once
 #endif
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <assert.h>
 #include <iomanip>
 #include <stack>
 #include <string>
@@ -15,35 +17,36 @@
 #include <stdexcept>
 #include <iostream>
 
+#include "word.h"
 #include "config.h"
 #include "helpers/heap.h"
 
 #ifndef CIR_API
-    #ifdef CIR_STATIC
-        #define CIR_API
-    #elif defined(_WIN32) || defined(_WIN64)
-        #ifdef CIR_BUILD_DLL
-            #define CIR_API __declspec(dllexport)
-        #else
-            #define CIR_API __declspec(dllimport)
-        #endif
-    #elif defined(__GNUC__) && __GNUC__ >= 4
-        #ifdef CIR_BUILD_DLL
-            #define CIR_API __attribute__((visibility("default")))
-        #else
-            #define CIR_API
-        #endif
-    #else
-        #define CIR_API
-    #endif
+#ifdef CIR_STATIC
+#define CIR_API
+#elif defined(_WIN32) || defined(_WIN64)
+#ifdef CIR_BUILD_DLL
+#define CIR_API __declspec(dllexport)
+#else
+#define CIR_API __declspec(dllimport)
+#endif
+#elif defined(__GNUC__) && __GNUC__ >= 4
+#ifdef CIR_BUILD_DLL
+#define CIR_API __attribute__((visibility("default")))
+#else
+#define CIR_API
+#endif
+#else
+#define CIR_API
+#endif
 #endif
 
 #ifndef CIR_INTERNAL
-    #if defined(__GNUC__) && __GNUC__ >= 4
-        #define CIR_INTERNAL __attribute__((visibility("hidden")))
-    #else
-        #define CIR_INTERNAL
-    #endif
+#if defined(__GNUC__) && __GNUC__ >= 4
+#define CIR_INTERNAL __attribute__((visibility("hidden")))
+#else
+#define CIR_INTERNAL
+#endif
 #endif
 
 
@@ -52,228 +55,45 @@ class CIR;
 using CIR_ExternFn = void (*)(CIR &vm);
 using CIR_InitLibFn = void (*)(CIR &vm);
 
-
-enum class WordType : uint8_t {
-    Integer,
-    Float,
-    Pointer,
-    Boolean,
-    Null
-};
-
-enum class WordFlag : uint16_t {
-    None = 0,
-    String = 1 << 1,
-    OwnsMemory = 1 << 2,
-    Register = 1 << 3,
-};
-
-struct Word {
-    WordType type{WordType::Null};
-    uint16_t flags = 0;
-
-    union {
-        int64_t i;
-        double f;
-        void *p;
-        bool b;
-    } data{};
-
-    Word() { data.i = 0; }
-
-    Word(const Word &other) : type(other.type), flags(other.flags) {
-        if (other.has_flag(WordFlag::OwnsMemory) && other.has_flag(WordFlag::String) && other.data.p != nullptr) {
-            const char *src = static_cast<const char *>(other.data.p);
-            size_t len = std::strlen(src);
-            char *str_copy = new char[len + 1];
-            std::strcpy(str_copy, src);
-            data.p = str_copy;
-        } else {
-            data = other.data;
-        }
-    }
-
-    Word &operator=(const Word &other) {
-        if (this != &other) {
-            if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
-                delete[] static_cast<char *>(data.p);
-            }
-
-            type = other.type;
-            flags = other.flags;
-
-            if (other.has_flag(WordFlag::OwnsMemory) && other.has_flag(WordFlag::String) && other.data.p != nullptr) {
-                const char *src = static_cast<const char *>(other.data.p);
-                size_t len = std::strlen(src);
-                char *str_copy = new char[len + 1];
-                std::strcpy(str_copy, src);
-                data.p = str_copy;
-            } else {
-                data = other.data;
-            }
-        }
-        return *this;
-    }
-
-    Word(Word &&other) noexcept : type(other.type), flags(other.flags), data(other.data) {
-        other.flags = 0;
-        other.data.p = nullptr;
-    }
-
-    Word &operator=(Word &&other) noexcept {
-        if (this != &other) {
-            if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
-                delete[] static_cast<char *>(data.p);
-            }
-
-            type = other.type;
-            flags = other.flags;
-            data = other.data;
-
-            other.flags = 0;
-            other.data.p = nullptr;
-        }
-        return *this;
-    }
-
-    ~Word() {
-        if (has_flag(WordFlag::OwnsMemory) && has_flag(WordFlag::String) && data.p != nullptr) {
-            delete[] static_cast<char *>(data.p);
-        }
-    }
-
-    void print() const;
-
-
-    static Word from_int(int64_t val) {
-        Word w;
-        w.type = WordType::Integer;
-        w.data.i = val;
-        return w;
-    }
-
-    static Word from_reg(int64_t val) {
-        Word w;
-        w.type = WordType::Integer;
-        w.data.i = val;
-        w.set_flag(WordFlag::Register);
-        return w;
-    }
-
-    static Word from_float(double val) {
-        Word w;
-        w.type = WordType::Float;
-        w.data.f = val;
-        return w;
-    }
-
-    static Word from_ptr(void *val) {
-        Word w;
-        w.type = WordType::Pointer;
-        w.data.p = val;
-        return w;
-    }
-
-    static Word from_bool(bool val) {
-        Word w;
-        w.type = WordType::Boolean;
-        w.data.b = val;
-        return w;
-    }
-
-    static Word from_string(const std::string &val) {
-        Word w;
-        w.type = WordType::Pointer;
-        w.set_flag(WordFlag::String);
-        w.data.p = const_cast<char *>(val.c_str());
-        return w;
-    }
-
-    static Word from_string_owned(const std::string &val) {
-        Word w;
-        w.type = WordType::Pointer;
-        w.set_flag(WordFlag::String);
-        w.set_flag(WordFlag::OwnsMemory);
-
-        char *str_copy = new char[val.size() + 1];
-        std::strcpy(str_copy, val.c_str());
-        w.data.p = str_copy;
-        return w;
-    }
-
-    static Word from_null() {
-        Word w;
-        w.type = WordType::Null;
-        return w;
-    }
-
-    void set_flag(WordFlag flag) { flags |= static_cast<uint8_t>(flag); }
-
-    [[nodiscard]] bool has_flag(WordFlag flag) const { return (flags & static_cast<uint8_t>(flag)) != 0; }
-
-    [[nodiscard]] int64_t as_int() const { return data.i; }
-    [[nodiscard]] double as_float() const { return data.f; }
-    [[nodiscard]] void *as_ptr() const { return data.p; }
-    [[nodiscard]] bool as_bool() const { return data.b; }
-
-    constexpr static void expect(Word &w, WordType etype, std::string msg = "No reason provided") {
-        if (w.type != etype) {
-            throw std::runtime_error("Expected " + std::to_string(static_cast<int>(etype)) + " but got " +
-                                     std::to_string(static_cast<int>(w.type)) + ": " + msg);
-        }
-    }
-
-    constexpr void expect(WordType etype) {
-        Word::expect(*this, etype);
-    }
-};
-
-// TODO: maybe combine all operations for different types into one and do diffrent things
-// TODO: pointer operations (PAdd, PSub) @enhancement see above
 enum class OpType : uint8_t {
     Mov,
-    Push, // Push value
-    PushReg, // push register
+    Load,
+    Store,
+    Push,
     Pop,
-    IAdd,
-    ISub,
-    IMul,
-    IDiv,
-    IMod,
-    IAnd,
-    IOr,
-    IXor,
+    Lea,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Neg,
+    Inc,
+    Dec,
+    And,
+    Or,
+    Xor,
     Not,
     Shl,
     Shr,
-    ICmp,
+    Cmp,
     Jmp,
     Je,
     Jne,
-    Gt,
     Lt,
-    Gte,
+    Gt,
     Lte,
+    Gte,
     Call,
     CallExtern,
     Ret,
-    Load,
-    Store,
-    Halt,
-    Nop,
-    Inc,
-    Dec,
-    Neg,
-    FAdd,
-    FSub,
-    FMul,
-    FDiv,
-    FCmp,
+    Syscall,
+    // TODO: no idea how to implement maybe passing value of r0 to it but how to pass args amount then? require r1-r3 to be filled?
     Cast,
-    LocalGet,
-    LocalSet,
     Alloc,
     Free,
+    Nop,
+    Halt,
 };
 
 struct Op {
@@ -303,6 +123,7 @@ public:
         bool running = true;
         std::vector<CallFrame> call_stack{};
     } state;
+
     void optimize();
 };
 
@@ -344,6 +165,8 @@ public:
     void set_extern_fn(std::string n, CIR_ExternFn f);
 
     std::vector<Word> &get_stack();
+
+    Word &go(Word &w);
 };
 
 #ifdef CIR_IMPLEMENTATION
@@ -395,256 +218,269 @@ CIR_API Word &CIR::gets() {
     return stack.emplace_back();
 }
 
-// TODO: add expect for types
+// Get Operand
+Word &CIR::go(Word &w) {
+    if (w.has_flag(WordFlag::Register)) {
+        return getr(w.as_int());
+    } else {
+        return w;
+    }
+}
+
+// Uniformed Operands Syntax (dest, reg/imm, imm/reg)
+// TODO: make is_operable be dont used
 CIR_API void CIR::execute_op(Function &fn, Op op) {
-    Word &dest = getr(0);
     switch (op.type) {
+        // (imm/reg, reg)
         case OpType::Mov: {
-            Word value;
-            if (op.args[0].has_flag(WordFlag::Register)) {
-                value = getr(op.args[0].as_int());
-            } else {
-                value = op.args[0];
-            }
-            move(value, op.args[1].as_int());
+            move(go(op.args[0]), op.args[1].as_int());
         }
         break;
 
+        // (imm/reg)
         case OpType::Push: {
-            push(op.args[0]);
+            push(go(op.args[0]));
         }
         break;
 
-        case OpType::PushReg: {
-            push(getr(op.args[0].as_int()));
-        }
-        break;
 
+        // (reg)
         case OpType::Pop: {
             Word &r = getr(op.args[0].as_int());
+            r.expect_flag(WordFlag::Register);
             r = pop();
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
-        case OpType::IAdd: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() + b.as_int());
+        // (dest, imm/reg, imm/reg)
+        case OpType::Add: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a + b;
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
-        case OpType::ISub: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() - b.as_int());
+        // (dest, imm/reg, imm/reg)
+        case OpType::Sub: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a - b;
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
-        case OpType::IMul: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() * b.as_int());
+        // (dest, imm/reg, imm/reg)
+        case OpType::Mul: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a * b;
         }
         break;
 
-        // TODO: add checks for registers so add ability for IAdd literal, literal @enhancement
-        case OpType::IDiv: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            if (b.as_int() == 0) {
-                throw std::runtime_error("Division by zero");
-            }
-            dest = Word::from_int(a.as_int() / b.as_int());
+        // (dest, imm/reg, imm/reg)
+        case OpType::Div: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a / b;
         }
         break;
 
-        case OpType::IMod: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            if (b.as_int() == 0) {
-                throw std::runtime_error("Modulo by zero");
-            }
-            dest = Word::from_int(a.as_int() % b.as_int());
+        case OpType::Mod: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a % b;
         }
         break;
 
-        case OpType::IAnd: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() & b.as_int());
+        case OpType::And: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a & b;
         }
         break;
 
-        case OpType::IOr: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() | b.as_int());
+        case OpType::Or: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a | b;
         }
         break;
 
-        case OpType::IXor: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() ^ b.as_int());
+        // TODO: this and following need implementation
+        case OpType::Xor: {
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a ^ b;
         }
         break;
 
         case OpType::Not: {
-            Word &a = getr(op.args[0].as_int());
+            Word &dest = getr(op.args[0].as_int());
+            Word &a = go(op.args[1]);
+            a.expect(WordType::Integer);
             dest = Word::from_int(~a.as_int());
         }
         break;
 
         case OpType::Shl: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() << b.as_int());
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a << b;
         }
         break;
 
         case OpType::Shr: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_int(a.as_int() >> b.as_int());
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+            Word &a = go(op.args[1]);
+            Word &b = go(op.args[2]);
+            dest = a >> b;
         }
         break;
 
-        case OpType::ICmp: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            cmp_flag = (a.as_int() == b.as_int());
+        case OpType::Cmp: {
+            Word &a = go(op.args[0]);
+            Word &b = go(op.args[1]);
+            cmp_flag = a == b;
         }
         break;
 
         case OpType::Jmp: {
-            fn.co = op.args[0].as_int();
+            Word &a = go(op.args[0]);
+            a.expect(WordType::Integer);
+            fn.co = a.as_int();
         }
         break;
 
         case OpType::Je: {
             if (cmp_flag) {
-                fn.co = op.args[0].as_int();
+                Word &a = go(op.args[0]);
+                a.expect(WordType::Integer);
+                fn.co = a.as_int();
             }
         }
         break;
 
         case OpType::Jne: {
             if (!cmp_flag) {
-                fn.co = op.args[0].as_int();
+                Word &a = go(op.args[0]);
+                a.expect(WordType::Integer);
+                fn.co = a.as_int();
             }
         }
         break;
 
         case OpType::Gt: {
-            cmp_flag = (getr(op.args[0].as_int()).as_int() > getr(op.args[1].as_int()).as_int());
+            Word &a = go(op.args[0]);
+            Word &b = go(op.args[1]);
+
+            cmp_flag = (a > b);
         }
         break;
 
         case OpType::Lt: {
-            cmp_flag = (getr(op.args[0].as_int()).as_int() < getr(op.args[1].as_int()).as_int());
+            Word &a = go(op.args[0]);
+            Word &b = go(op.args[1]);
+
+            cmp_flag = (a < b);
         }
         break;
 
         case OpType::Gte: {
-            cmp_flag = (getr(op.args[0].as_int()).as_int() >= getr(op.args[1].as_int()).as_int());
+            Word &a = go(op.args[0]);
+            Word &b = go(op.args[1]);
+
+            cmp_flag = (a >= b);
         }
         break;
 
         case OpType::Lte: {
-            cmp_flag = (getr(op.args[0].as_int()).as_int() <= getr(op.args[1].as_int()).as_int());
+            Word &a = go(op.args[0]);
+            Word &b = go(op.args[1]);
+
+            cmp_flag = (a <= b);
         }
         break;
 
         case OpType::Inc: {
-            Word &r = getr(op.args[0].as_int());
-            r = Word::from_int(r.as_int() + 1);
+            Word &r = go(op.args[0]);
+            r.expect_flag(WordFlag::Register);
+            ++r;
         }
         break;
 
         case OpType::Dec: {
-            Word &r = getr(op.args[0].as_int());
-            r = Word::from_int(r.as_int() - 1);
+            Word &r = go(op.args[0]);
+            r.expect_flag(WordFlag::Register);
+            --r;
         }
         break;
 
         case OpType::Neg: {
+            op.args[0].expect_flag(WordFlag::Register);
             Word &a = getr(op.args[0].as_int());
-            dest = Word::from_int(-a.as_int());
-        }
-        break;
-
-        case OpType::FAdd: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_float(a.as_float() + b.as_float());
-        }
-        break;
-
-        case OpType::FSub: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_float(a.as_float() - b.as_float());
-        }
-        break;
-
-        case OpType::FMul: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_float(a.as_float() * b.as_float());
-        }
-        break;
-
-        case OpType::FDiv: {
-            Word &a = getr(op.args[0].as_int());
-            Word &b = getr(op.args[1].as_int());
-            dest = Word::from_float(a.as_float() / b.as_float());
+            if (a.type == WordType::Integer) {
+                a = Word::from_int(-a.as_int());
+            } else if (a.type == WordType::Float) {
+                a = Word::from_float(-a.as_float());
+            } else {
+                throw std::runtime_error("Invalid type for negation");
+            }
         }
         break;
 
         case OpType::Cast: {
-            std::string target_type = (const char *) op.args[0].as_ptr();
+            Word &dest = getr(op.args[1].as_int());
+            dest.expect_flag(WordFlag::Register);
 
-            Word &a = getr(op.args[1].as_int());
-            switch (a.type) {
-                case WordType::Integer: {
-                    if (target_type == "int") {
-                        break;
-                    }
-                    if (target_type == "float") {
-                        dest = Word::from_float(static_cast<double>(a.as_int()));
-                    }
-                    if (target_type == "ptr") {
-                        dest = Word::from_ptr((void *) a.as_int());
-                    } else {
-                        throw std::runtime_error("Invalid cast type: " + std::string(target_type));
-                    }
+            Word &target_type = go(op.args[0]);
+            target_type.expect_flag(WordFlag::String);
+
+            const char *type_str = static_cast<const char *>(target_type.as_ptr());
+
+            if (dest.type == WordType::Integer) {
+                if (strcmp(type_str, "float") == 0) {
+                    dest = Word::from_float(static_cast<double>(dest.as_int()));
+                } else if (strcmp(type_str, "ptr") == 0) {
+                    dest = Word::from_ptr(reinterpret_cast<void *>(dest.as_int()));
+                } else if (strcmp(type_str, "int") != 0) {
+                    throw std::runtime_error("Invalid cast from int to " + std::string(type_str));
                 }
-                break;
-                case WordType::Float: {
-                    if (target_type == "int") {
-                        dest = Word::from_int(static_cast<int>(a.as_float()));
-                    } else if (target_type == "float") {
-                        break;
-                    } else {
-                        throw std::runtime_error("Invalid cast type: " + std::string(target_type));
-                    }
+            } else if (dest.type == WordType::Float) {
+                if (strcmp(type_str, "int") == 0) {
+                    dest = Word::from_int(static_cast<int64_t>(dest.as_float()));
+                } else if (strcmp(type_str, "float") != 0) {
+                    throw std::runtime_error("Invalid cast from float to " + std::string(type_str));
                 }
-                break;
-                case WordType::Pointer: {
-                    if (target_type == "int") {
-                        dest = Word::from_int((int64_t) a.as_ptr());
-                    } else {
-                        throw std::runtime_error("Invalid cast type: " + std::string(target_type));
-                    }
+            } else if (dest.type == WordType::Pointer) {
+                if (strcmp(type_str, "int") == 0) {
+                    dest = Word::from_int(reinterpret_cast<int64_t>(dest.as_ptr()));
+                } else if (strcmp(type_str, "ptr") != 0) {
+                    throw std::runtime_error("Invalid cast from ptr to " + std::string(type_str));
                 }
-                break;
-                default: assert(0 && "Unsupported word type");
+            } else {
+                throw std::runtime_error("Unsupported source type for cast");
             }
         }
         break;
+
 
         case OpType::Halt: program.state.running = false;
             break;
@@ -664,11 +500,10 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
             return;
 
         case OpType::CallExtern: {
-            if (op.args[0].type != WordType::Pointer) {
-                throw std::runtime_error("CallExtern: first argument must be a pointer to function name");
-            }
+            Word &fn_name_w = go(op.args[0]);
+            fn_name_w.expect_flag(WordFlag::String);
 
-            const char *fn_name_cstr = static_cast<const char *>(op.args[0].as_ptr());
+            const char *fn_name_cstr = static_cast<const char *>(fn_name_w.as_ptr());
             if (fn_name_cstr == nullptr) {
                 throw std::runtime_error("CallExtern: null function name");
             }
@@ -698,81 +533,57 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
             return;
 
-        case OpType::LocalGet: {
-            Word::expect(op.args[0], WordType::Integer, "expecting local id");
-            dest = fn.locals[op.args[0].as_int()];
-        }
-        break;
-
-        case OpType::LocalSet: {
-            Word::expect(op.args[0], WordType::Integer, "expecting local id");
-            Word::expect(op.args[1], WordType::Integer, "expecting register");
-            fn.locals[op.args[0].as_int()] = getr(op.args[1].as_int());
-        }
-        break;
-
-        case OpType::FCmp: {
-            cmp_flag = (getr(op.args[0].as_int()).as_float() == getr(op.args[1].as_int()).as_float());
-        }
-        break;
-
         case OpType::Load: {
-            Word::expect(op.args[2], WordType::Integer, "Load: size must be integer");
-            int64_t size = op.args[2].as_int();
-
-            void *src = nullptr;
-            if (op.args[1].has_flag(WordFlag::Register)) {
-                src = getr(op.args[1].as_int()).as_ptr();
-            } else {
-                src = op.args[1].as_ptr();
-            }
-
-            if (!src) throw std::runtime_error("Load: source pointer is null");
-
-            if (op.args[0].has_flag(WordFlag::Register)) {
-                Word &dest_reg = getr(op.args[0].as_int());
-
-                switch (size) {
-                    case 1:
-                        dest_reg = Word::from_int(*static_cast<uint8_t*>(src));
-                        break;
-                    case 2:
-                        dest_reg = Word::from_int(*static_cast<uint16_t*>(src));
-                        break;
-                    case 4:
-                        dest_reg = Word::from_int(*static_cast<uint32_t*>(src));
-                        break;
-                    case 8:
-                        dest_reg = Word::from_int(*static_cast<int64_t*>(src));
-                        break;
-                    default:
-                        throw std::runtime_error("Load: unsupported size for register load: " + std::to_string(size));
-                }
-            } else {
-                void *d = op.args[0].as_ptr();
-                if (!d) throw std::runtime_error("Load: destination pointer is null");
-
-                if (size == 1) {
-                    *static_cast<uint8_t*>(d) = *static_cast<uint8_t*>(src);
-                } else {
-                    memcpy(d, src, size);
-                }
-            }
+            throw std::runtime_error("Load not implemented yet");
         }
-            break;
+        break;
 
         case OpType::Store: {
-            memcpy(getr(op.args[0].as_int()).as_ptr(), getr(op.args[1].as_int()).as_ptr(), op.args[2].as_int());
+            throw std::runtime_error("Store not implemented yet");
         }
         break;
 
         case OpType::Alloc: {
-            dest = Word::from_ptr(heap.allocate(op.args[0].as_int()));
+            op.args[0].expect_flag(WordFlag::Register);
+            Word &dest = getr(op.args[0].as_int());
+            Word &x = go(op.args[1]);
+            x.expect(WordType::Integer);
+            dest = Word::from_ptr(heap.allocate(x.as_int()));
         }
         break;
 
         case OpType::Free: {
             heap.deallocate(getr(op.args[0].as_int()).as_ptr());
+        }
+        break;
+
+        case OpType::Lea: {
+            // dest, [base + offset]
+
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+
+            Word &base = go(op.args[1]);
+            Word &offset = go(op.args[2]);
+
+            offset.expect(WordType::Integer);
+
+            void *address = nullptr;
+
+            if (base.type == WordType::Pointer) {
+                address = static_cast<char *>(base.as_ptr()) + offset.as_int();
+            } else if (base.type == WordType::Integer) {
+                address = reinterpret_cast<void *>(base.as_int() + offset.as_int());
+            } else {
+                throw std::runtime_error("lea: base must be pointer or integer");
+            }
+
+            dest = Word::from_ptr(address);
+        }
+        break;
+
+        case OpType::Syscall: {
+            throw std::runtime_error("Syscall not implemented yet");
         }
         break;
 
@@ -1171,360 +982,6 @@ CIR_API void CIR::set_extern_fn(std::string n, CIR_ExternFn f) {
 
 CIR_API std::vector<Word> &CIR::get_stack() {
     return stack;
-}
-
-CIR_API void Program::optimize() {
-    for (auto &[name, func]: functions) {
-        bool changed = true;
-        int pass = 0;
-        const int MAX_PASSES = 5;
-
-        while (changed && pass < MAX_PASSES) {
-            changed = false;
-            pass++;
-
-            std::vector<Op> optimized_ops;
-            optimized_ops.reserve(func.ops.size());
-
-            std::unordered_map<int64_t, Word> reg_values;
-
-            auto is_int_imm = [](const Word &w) -> bool {
-                return w.type == WordType::Integer && !w.has_flag(WordFlag::Register);
-            };
-            auto is_float_imm = [](const Word &w) -> bool {
-                return w.type == WordType::Float && !w.has_flag(WordFlag::Register);
-            };
-            auto is_register = [](const Word &w) -> bool {
-                return w.has_flag(WordFlag::Register);
-            };
-
-            for (size_t i = 0; i < func.ops.size(); ++i) {
-                const Op &op = func.ops[i];
-
-                if (op.type == OpType::Nop) {
-                    changed = true;
-                    continue;
-                }
-
-                if (op.type == OpType::Halt) {
-                    optimized_ops.push_back(op);
-                    bool has_jump_past = false;
-                    for (size_t j = 0; j < func.ops.size(); ++j) {
-                        const Op &check_op = func.ops[j];
-                        if (check_op.type == OpType::Jmp || check_op.type == OpType::Je ||
-                            check_op.type == OpType::Jne) {
-                            int64_t target = check_op.args[0].as_int();
-                            if (target > static_cast<int64_t>(i)) {
-                                has_jump_past = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!has_jump_past) {
-                        changed = true;
-                        break;
-                    }
-                    continue;
-                }
-
-                if ((op.type == OpType::IAdd || op.type == OpType::ISub || op.type == OpType::IMul ||
-                     op.type == OpType::IDiv || op.type == OpType::IMod ||
-                     op.type == OpType::IAnd || op.type == OpType::IOr || op.type == OpType::IXor ||
-                     op.type == OpType::Shl || op.type == OpType::Shr)) {
-
-                    Word arg0 = op.args[0];
-                    Word arg1 = op.args[1];
-
-                    if (is_register(arg0) && reg_values.count(arg0.as_int())) {
-                        arg0 = reg_values[arg0.as_int()];
-                    }
-                    if (is_register(arg1) && reg_values.count(arg1.as_int())) {
-                        arg1 = reg_values[arg1.as_int()];
-                    }
-
-                    if (is_int_imm(arg0) && is_int_imm(arg1)) {
-                        int64_t a = arg0.data.i;
-                        int64_t b = arg1.data.i;
-                        bool fold_ok = true;
-                        int64_t result = 0;
-
-                        switch (op.type) {
-                            case OpType::IAdd: result = a + b; break;
-                            case OpType::ISub: result = a - b; break;
-                            case OpType::IMul: result = a * b; break;
-                            case OpType::IDiv:
-                                if (b == 0) fold_ok = false;
-                                else result = a / b;
-                                break;
-                            case OpType::IMod:
-                                if (b == 0) fold_ok = false;
-                                else result = a % b;
-                                break;
-                            case OpType::IAnd: result = a & b; break;
-                            case OpType::IOr:  result = a | b; break;
-                            case OpType::IXor: result = a ^ b; break;
-                            case OpType::Shl:  result = a << b; break;
-                            case OpType::Shr:  result = a >> b; break;
-                            default: fold_ok = false; break;
-                        }
-
-                        if (fold_ok) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = Word::from_int(result);
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            reg_values[0] = Word::from_int(result);
-                            changed = true;
-                            continue;
-                        }
-                    }
-
-                    if (is_int_imm(arg1)) {
-                        int64_t b = arg1.data.i;
-
-                        if ((op.type == OpType::IAdd || op.type == OpType::ISub ||
-                             op.type == OpType::IOr || op.type == OpType::IXor) && b == 0) {
-                            if (is_register(arg0)) {
-                                Op mov{};
-                                mov.type = OpType::Mov;
-                                mov.args[0] = arg0;
-                                mov.args[1] = Word::from_int(0);
-                                optimized_ops.push_back(std::move(mov));
-                            } else {
-                                Op mov{};
-                                mov.type = OpType::Mov;
-                                mov.args[0] = arg0;
-                                mov.args[1] = Word::from_int(0);
-                                optimized_ops.push_back(std::move(mov));
-                            }
-                            changed = true;
-                            continue;
-                        }
-
-                        if ((op.type == OpType::IMul || op.type == OpType::IAnd) && b == 0) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = Word::from_int(0);
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            reg_values[0] = Word::from_int(0);
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::IMul && b == 1) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = arg0;
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::IMul && b > 0 && (b & (b - 1)) == 0) {
-                            int shift = 0;
-                            int64_t temp = b;
-                            while (temp > 1) { temp >>= 1; shift++; }
-
-                            Op shl{};
-                            shl.type = OpType::Shl;
-                            shl.args[0] = arg0;
-                            shl.args[1] = Word::from_int(shift);
-                            optimized_ops.push_back(std::move(shl));
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::IDiv && b == 1) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = arg0;
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::IAnd && b == -1) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = arg0;
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::IXor && is_register(arg0) && is_register(op.args[1]) &&
-                            arg0.as_int() == op.args[1].as_int()) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = Word::from_int(0);
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            reg_values[0] = Word::from_int(0);
-                            changed = true;
-                            continue;
-                        }
-                    }
-                }
-
-                if ((op.type == OpType::FAdd || op.type == OpType::FSub ||
-                     op.type == OpType::FMul || op.type == OpType::FDiv)) {
-
-                    Word arg0 = op.args[0];
-                    Word arg1 = op.args[1];
-
-                    if (is_register(arg0) && reg_values.count(arg0.as_int())) {
-                        arg0 = reg_values[arg0.as_int()];
-                    }
-                    if (is_register(arg1) && reg_values.count(arg1.as_int())) {
-                        arg1 = reg_values[arg1.as_int()];
-                    }
-
-                    if (is_float_imm(arg0) && is_float_imm(arg1)) {
-                        double a = arg0.data.f;
-                        double b = arg1.data.f;
-                        bool fold_ok = true;
-                        double result = 0.0;
-
-                        switch (op.type) {
-                            case OpType::FAdd: result = a + b; break;
-                            case OpType::FSub: result = a - b; break;
-                            case OpType::FMul: result = a * b; break;
-                            case OpType::FDiv:
-                                if (b == 0.0) fold_ok = false;
-                                else result = a / b;
-                                break;
-                            default: fold_ok = false; break;
-                        }
-
-                        if (fold_ok) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = Word::from_float(result);
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            reg_values[0] = Word::from_float(result);
-                            changed = true;
-                            continue;
-                        }
-                    }
-
-                    if (is_float_imm(arg1)) {
-                        double b = arg1.data.f;
-
-                        if ((op.type == OpType::FAdd || op.type == OpType::FSub) && b == 0.0) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = arg0;
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            changed = true;
-                            continue;
-                        }
-
-                        if ((op.type == OpType::FMul || op.type == OpType::FDiv) && b == 1.0) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = arg0;
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            changed = true;
-                            continue;
-                        }
-
-                        if (op.type == OpType::FMul && b == 0.0) {
-                            Op mov{};
-                            mov.type = OpType::Mov;
-                            mov.args[0] = Word::from_float(0.0);
-                            mov.args[1] = Word::from_int(0);
-                            optimized_ops.push_back(std::move(mov));
-                            reg_values[0] = Word::from_float(0.0);
-                            changed = true;
-                            continue;
-                        }
-                    }
-                }
-
-                if (op.type == OpType::Mov) {
-                    const Word &src = op.args[0];
-                    const Word &dst = op.args[1];
-
-                    if (is_register(src) && is_int_imm(dst)) {
-                        int64_t src_idx = src.as_int();
-                        int64_t dst_idx = dst.as_int();
-                        if (src_idx == dst_idx) {
-                            changed = true;
-                            continue;
-                        }
-                    }
-
-                    if (is_int_imm(dst)) {
-                        int64_t reg_idx = dst.as_int();
-                        if (!is_register(src)) {
-                            reg_values[reg_idx] = src;
-                        } else {
-                            reg_values.erase(reg_idx);
-                        }
-                    }
-                }
-
-                if ((op.type == OpType::Inc || op.type == OpType::Dec) &&
-                    i + 1 < func.ops.size()) {
-                    const Op &next = func.ops[i + 1];
-
-                    if ((op.type == OpType::Inc && next.type == OpType::Dec) ||
-                        (op.type == OpType::Dec && next.type == OpType::Inc)) {
-                        if (is_int_imm(op.args[0]) && is_int_imm(next.args[0]) &&
-                            op.args[0].as_int() == next.args[0].as_int()) {
-                            i++;
-                            changed = true;
-                            continue;
-                        }
-                    }
-                }
-
-                if (op.type == OpType::Mov && !is_register(op.args[0]) && is_int_imm(op.args[1]) &&
-                    i + 1 < func.ops.size()) {
-                    const Op &next = func.ops[i + 1];
-
-                    if ((next.type == OpType::IAdd || next.type == OpType::ISub) &&
-                        is_register(next.args[0]) && is_int_imm(next.args[1]) &&
-                        next.args[0].as_int() == op.args[1].as_int() &&
-                        !is_register(next.args[1])) {
-
-                        int64_t val1 = op.args[0].as_int();
-                        int64_t val2 = next.args[1].as_int();
-                        int64_t result = (next.type == OpType::IAdd) ? (val1 + val2) : (val1 - val2);
-
-                        Op mov{};
-                        mov.type = OpType::Mov;
-                        mov.args[0] = Word::from_int(result);
-                        mov.args[1] = op.args[1];
-                        optimized_ops.push_back(std::move(mov));
-                        reg_values[op.args[1].as_int()] = Word::from_int(result);
-                        i++;
-                        changed = true;
-                        continue;
-                    }
-                }
-
-                if (is_int_imm(op.args[1])) {
-                    int64_t reg_idx = op.args[1].as_int();
-                    if (op.type != OpType::Mov) {
-                        reg_values.erase(reg_idx);
-                    }
-                }
-
-                optimized_ops.push_back(op);
-            }
-
-            func.ops = std::move(optimized_ops);
-        }
-    }
 }
 
 

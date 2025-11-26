@@ -4,6 +4,7 @@
 - main.cpp is the frontend
 
 # Features
+
 - Simple
 - Register-based, Function-Based
 - Bytecode-based
@@ -12,7 +13,11 @@
 - Readable Assembly
 
 # TODOS
+
+- TODO: update docs
+- TODO: make CIR standalone so anything can be implemented in itself
 - TODO: preprocessor or include system
 - TODO: extend std to make it usable without custom functions in any project
-- TODO: make CIR standalone so anything can be implemented in itself
+- TODO: implement Optimizer, which was removed because of a complete change of the instruction set
+- TODO: write a transpiler
 - TODO: maybe write a JIT or AOT

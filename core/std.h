@@ -34,7 +34,7 @@ namespace cir_std {
             delete list;
         }
 
-        inline void append_item(CIR& cir) {
+        inline void append_item(CIR &cir) {
             List *list = (List *) cir.getr(0).as_ptr();
             if (list->size + 1 > list->capacity) // TODO: @enhancement maybe realloc instead of error
                 throw std::runtime_error("List is full.");
@@ -42,7 +42,7 @@ namespace cir_std {
             list->data[list->size++] = cir.getr(1);
         }
 
-        inline void get_item(CIR& cir) {
+        inline void get_item(CIR &cir) {
             Word list_r = cir.getr(0);
             list_r.expect(WordType::Pointer);
             List *list = (List *) list_r.as_ptr();
@@ -53,7 +53,7 @@ namespace cir_std {
             list_r = list->data[index];
         }
 
-        inline void pop_item(CIR& cir) {
+        inline void pop_item(CIR &cir) {
             Word list_r = cir.getr(0);
             list_r.expect(WordType::Pointer);
             List *list = (List *) list_r.as_ptr();
@@ -61,6 +61,7 @@ namespace cir_std {
             list_r = list->data[list->size - 1];
             list->size--;
         }
+
         // TODO: @enhancement maybe add remove_item(list, i)
 
         void register_list(CIR &cir) {
@@ -70,7 +71,6 @@ namespace cir_std {
             cir.set_extern_fn("std.list.get", get_item);
             cir.set_extern_fn("std.list.pop", pop_item);
         }
-
     }
 
     void init_std(CIR &cir) {

@@ -43,49 +43,42 @@ private:
         opcode_map["ret"] = {OpType::Ret, 0};
 
         // 1 operand
-        opcode_map["not"] = {OpType::Not, 1};
         opcode_map["inc"] = {OpType::Inc, 1};
         opcode_map["dec"] = {OpType::Dec, 1};
         opcode_map["neg"] = {OpType::Neg, 1};
         opcode_map["push"] = {OpType::Push, 1};
-        opcode_map["pushr"] = {OpType::PushReg, 1};
         opcode_map["pop"] = {OpType::Pop, 1};
         opcode_map["jmp"] = {OpType::Jmp, 1};
         opcode_map["je"] = {OpType::Je, 1};
         opcode_map["jne"] = {OpType::Jne, 1};
         opcode_map["call"] = {OpType::Call, 1};
         opcode_map["callx"] = {OpType::CallExtern, 1};
-        opcode_map["local.get"] = {OpType::LocalGet, 1};
-
+        opcode_map["free"] = {OpType::Free, 1};
 
         // 2 operands
+        opcode_map["not"] = {OpType::Not, 2};
         opcode_map["mov"] = {OpType::Mov, 2};
-        opcode_map["iadd"] = {OpType::IAdd, 2};
-        opcode_map["isub"] = {OpType::ISub, 2};
-        opcode_map["imul"] = {OpType::IMul, 2};
-        opcode_map["idiv"] = {OpType::IDiv, 2};
-        opcode_map["imod"] = {OpType::IMod, 2};
-        opcode_map["and"] = {OpType::IAnd, 2};
-        opcode_map["or"] = {OpType::IOr, 2};
-        opcode_map["xor"] = {OpType::IXor, 2};
-        opcode_map["shl"] = {OpType::Shl, 2};
-        opcode_map["shr"] = {OpType::Shr, 2};
-        opcode_map["icmp"] = {OpType::ICmp, 2};
         opcode_map["gt"] = {OpType::Gt, 2};
         opcode_map["gte"] = {OpType::Gte, 2};
         opcode_map["lt"] = {OpType::Lt, 2};
         opcode_map["lte"] = {OpType::Lte, 2};
-        opcode_map["fadd"] = {OpType::FAdd, 2};
-        opcode_map["fsub"] = {OpType::FSub, 2};
-        opcode_map["fmul"] = {OpType::FMul, 2};
-        opcode_map["fdiv"] = {OpType::FDiv, 2};
-        opcode_map["fcmp"] = {OpType::FCmp, 2};
         opcode_map["cast"] = {OpType::Cast, 2};
-        opcode_map["local.set"] = {OpType::LocalSet, 2};
+        opcode_map["alloc"] = {OpType::Alloc, 2};
+        opcode_map["cmp"] = {OpType::Cmp, 2};
 
         // 3 operands
+        opcode_map["shl"] = {OpType::Shl, 3};
+        opcode_map["shr"] = {OpType::Shr, 3};
         opcode_map["load"] = {OpType::Load, 3};
         opcode_map["store"] = {OpType::Store, 3};
+        opcode_map["add"] = {OpType::Add, 3};
+        opcode_map["sub"] = {OpType::Sub, 3};
+        opcode_map["mul"] = {OpType::Mul, 3};
+        opcode_map["div"] = {OpType::Div, 3};
+        opcode_map["mod"] = {OpType::Mod, 3};
+        opcode_map["and"] = {OpType::And, 3};
+        opcode_map["or"] = {OpType::Or, 3};
+        opcode_map["xor"] = {OpType::Xor, 3};
     }
 
     std::string trim(const std::string &str) {
@@ -582,7 +575,6 @@ public:
         verify_functions();
         verify_labels();
         inline_functions();
-        program.optimize();
     }
 
     void assemble_string(const std::string &source) {
