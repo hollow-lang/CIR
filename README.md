@@ -13,6 +13,7 @@
 - Readable Assembly
 
 # TODOS
+- TODO: update changelog before release @before_commit
 
 - TODO: update docs
 - TODO: make CIR standalone so anything can be implemented in itself

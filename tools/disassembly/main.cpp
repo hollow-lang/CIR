@@ -9,6 +9,7 @@
 #include "core/cir.h"
 
 #include "core/asm.h"
+#include "core/word.h"
 
 std::string op_type_to_string(OpType type, Assembler &assembler) {
     for (auto i: assembler.opcode_map) {
@@ -30,15 +31,6 @@ void disassemble_function(const std::string &name, const Function &fn, Assembler
             arg.print();
         }
         std::cout << std::endl;
-    }
-
-    if (!fn.locals.empty()) {
-        std::cout << "  Locals:" << std::endl;
-        for (const auto &[id, w]: fn.locals) {
-            std::cout << "    [" << id << "] = ";
-            w.print();
-            std::cout << std::endl;
-        }
     }
 }
 

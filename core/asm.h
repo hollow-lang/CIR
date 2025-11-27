@@ -65,6 +65,7 @@ private:
         opcode_map["cast"] = {OpType::Cast, 2};
         opcode_map["alloc"] = {OpType::Alloc, 2};
         opcode_map["cmp"] = {OpType::Cmp, 2};
+        opcode_map["syscall"] = {OpType::Syscall, 2};
 
         // 3 operands
         opcode_map["shl"] = {OpType::Shl, 3};

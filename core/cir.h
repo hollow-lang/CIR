@@ -21,6 +21,12 @@
 #include "config.h"
 #include "helpers/heap.h"
 
+#ifdef __linux__
+#include <unistd.h>
+#include <sys/syscall.h>
+#elif defined(_WIN32) || defined(_WIN64)
+#endif
+
 #ifndef CIR_API
 #ifdef CIR_STATIC
 #define CIR_API
@@ -103,7 +109,6 @@ struct Op {
 
 struct Function {
     std::vector<Op> ops{};
-    std::unordered_map<Config::DI_TYPE, Word> locals{};
     Config::DI_TYPE co{};
 };
 
@@ -533,13 +538,80 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
             return;
 
+        // (dest_reg, address, size)
         case OpType::Load: {
-            throw std::runtime_error("Load not implemented yet");
+            Word &dest = getr(op.args[0].as_int());
+            dest.expect_flag(WordFlag::Register);
+
+            Word &addr = go(op.args[1]);
+            addr.expect(WordType::Pointer);
+
+            Word &size = go(op.args[2]);
+            size.expect(WordType::Integer);
+
+            void *ptr = addr.as_ptr();
+            if (ptr == nullptr) {
+                throw std::runtime_error("Load: null pointer dereference");
+            }
+
+            int64_t byte_size = size.as_int();
+
+            switch (byte_size) {
+                case 1:
+                    dest = Word::from_int(*static_cast<uint8_t *>(ptr));
+                    break;
+                case 2:
+                    dest = Word::from_int(*static_cast<uint16_t *>(ptr));
+                    break;
+                case 4:
+                    dest = Word::from_int(*static_cast<uint32_t *>(ptr));
+                    break;
+                case 8:
+                    std::memcpy(&dest.data, ptr, 8);
+                    break;
+                default:
+                    throw std::runtime_error("Load: unsupported size " + std::to_string(byte_size));
+            }
         }
         break;
 
+        // (ptr, value, size)
         case OpType::Store: {
-            throw std::runtime_error("Store not implemented yet");
+            Word &addr = go(op.args[0]);
+            addr.expect(WordType::Pointer);
+
+            Word &value = go(op.args[1]);
+
+            Word &size = go(op.args[2]);
+            size.expect(WordType::Integer);
+
+            void *ptr = addr.as_ptr();
+            if (ptr == nullptr) {
+                throw std::runtime_error("Store: null pointer dereference");
+            }
+
+            int64_t byte_size = size.as_int();
+
+            switch (byte_size) {
+                case 1:
+                    *static_cast<uint8_t *>(ptr) = static_cast<uint8_t>(value.as_int());
+                    break;
+                case 2:
+                    *static_cast<uint16_t *>(ptr) = static_cast<uint16_t>(value.as_int());
+                    break;
+                case 4:
+                    if (value.type == WordType::Float) {
+                        *static_cast<float *>(ptr) = static_cast<float>(value.as_float());
+                    } else {
+                        *static_cast<uint32_t *>(ptr) = static_cast<uint32_t>(value.as_int());
+                    }
+                    break;
+                case 8:
+                    std::memcpy(ptr, &value.data, 8);
+                    break;
+                default:
+                    throw std::runtime_error("Store: unsupported size " + std::to_string(byte_size));
+            }
         }
         break;
 
@@ -558,8 +630,6 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         break;
 
         case OpType::Lea: {
-            // dest, [base + offset]
-
             Word &dest = getr(op.args[0].as_int());
             dest.expect_flag(WordFlag::Register);
 
@@ -582,12 +652,59 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
+        // (syscall_id, arg_count (from r0 - rN)
         case OpType::Syscall: {
-            throw std::runtime_error("Syscall not implemented yet");
-        }
+            Word &id_w = go(op.args[0]);
+            Word &arg_count_w = go(op.args[1]);
+            id_w.expect(WordType::Integer);
+            arg_count_w.expect(WordType::Integer);
+            int64_t id = id_w.as_int();
+            int64_t arg_count = arg_count_w.as_int();
+#ifdef __linux__
+// TODO: support other syscall arg types
+switch (arg_count) {
+case 0: {
+    syscall(id);
+}
+break;
+case 1: {
+    syscall(id, getr(0).as_int());
+}
+break;
+case 2: {
+    syscall(id, getr(0).as_int(), getr(1).as_int());
+}
+break;
+case 3: {
+    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int());
+}
+break;
+case 4: {
+    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int());
+}
+break;
+case 5: {
+    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int(),
+            getr(4).as_int());
+}
+break;
+case 6: {
+    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int(),
+            getr(4).as_int(), getr(5).as_int());
+}
+break;
+default: throw std::runtime_error("Syscall: unsupported argument count " + std::to_string(arg_count));
+}
+
+#elif defined(_WIN32) || defined(_WIN64)
+#error "implement syscall for windows" // TODO: write syscall emulation for windows
+#else
+#error "unknown platform for syscall implementation"
+#endif
+}
         break;
 
-        default: assert(0 && "wtf, this dont should happen.");
+default : assert(0 && "wtf, this dont should happen.");
     }
 }
 
@@ -664,12 +781,6 @@ CIR_API std::vector<uint8_t> CIR::to_bytecode() {
                 }
             }
         }
-
-        for (const auto &[local_id, local_val]: func.locals) {
-            if (local_val.has_flag(WordFlag::String) && local_val.type == WordType::Pointer) {
-                add_string(static_cast<const char *>(local_val.data.p));
-            }
-        }
     }
 
     for (const auto &req: program.required_externs) {
@@ -734,32 +845,7 @@ CIR_API std::vector<uint8_t> CIR::to_bytecode() {
                 }
             }
         }
-
-        uint32_t local_count = func.locals.size();
-        bytes.insert(bytes.end(), reinterpret_cast<uint8_t *>(&local_count),
-                     reinterpret_cast<uint8_t *>(&local_count) + sizeof(local_count));
-
-        for (const auto &[local_id, local_val]: func.locals) {
-            bytes.push_back(local_id);
-
-            bytes.push_back(static_cast<uint8_t>(local_val.type));
-            bytes.push_back(local_val.flags);
-
-            if (local_val.has_flag(WordFlag::String) && local_val.type == WordType::Pointer) {
-                const char *str = static_cast<const char *>(local_val.data.p);
-                uint32_t str_idx = str ? string_table[std::string(str)] : UINT32_MAX;
-
-                bytes.insert(bytes.end(),
-                             reinterpret_cast<uint8_t *>(&str_idx),
-                             reinterpret_cast<uint8_t *>(&str_idx) + sizeof(str_idx));
-            } else {
-                bytes.insert(bytes.end(),
-                             reinterpret_cast<const uint8_t *>(&local_val.data),
-                             reinterpret_cast<const uint8_t *>(&local_val.data) + sizeof(local_val.data));
-            }
-        }
     }
-
     return bytes;
 }
 
@@ -902,66 +988,6 @@ CIR_API void CIR::from_bytecode(const std::vector<uint8_t> &bytes) {
             }
 
             func.ops.push_back(op);
-        }
-
-        if (offset + sizeof(uint32_t) > bytes.size()) {
-            throw std::runtime_error("Bytecode truncated: cannot read local count");
-        }
-
-        uint32_t local_count;
-        std::memcpy(&local_count, &bytes[offset], sizeof(local_count));
-        offset += sizeof(local_count);
-
-        for (uint32_t l = 0; l < local_count; l++) {
-            if (offset + sizeof(uint32_t) > bytes.size()) {
-                throw std::runtime_error("Bytecode truncated: cannot read local id");
-            }
-
-            uint32_t local_id;
-            std::memcpy(&local_id, &bytes[offset], sizeof(Config::DI_TYPE));
-            offset += sizeof(Config::DI_TYPE);
-
-            if (offset + 2 > bytes.size()) {
-                throw std::runtime_error("Bytecode truncated: cannot read local value type and flags");
-            }
-
-            Word local_val;
-            local_val.type = static_cast<WordType>(bytes[offset++]);
-            local_val.flags = bytes[offset++];
-
-            if (local_val.has_flag(WordFlag::String) && local_val.type == WordType::Pointer) {
-                if (offset + sizeof(uint32_t) > bytes.size()) {
-                    throw std::runtime_error("Bytecode truncated: cannot read string index");
-                }
-
-                uint32_t str_idx;
-                std::memcpy(&str_idx, &bytes[offset], sizeof(str_idx));
-                offset += sizeof(str_idx);
-
-                if (str_idx == UINT32_MAX) {
-                    local_val.data.p = nullptr;
-                } else {
-                    if (str_idx >= string_table.size()) {
-                        throw std::runtime_error("Invalid string table index");
-                    }
-
-                    const std::string &str = string_table[str_idx];
-                    char *str_copy = new char[str.size() + 1];
-                    std::strcpy(str_copy, str.c_str());
-
-                    local_val.data.p = str_copy;
-                    local_val.set_flag(WordFlag::OwnsMemory);
-                }
-            } else {
-                if (offset + sizeof(Word::data) > bytes.size()) {
-                    throw std::runtime_error("Bytecode truncated: cannot read local value data");
-                }
-
-                std::memcpy(&local_val.data, &bytes[offset], sizeof(local_val.data));
-                offset += sizeof(local_val.data);
-            }
-
-            func.locals[local_id] = local_val;
         }
 
         program.functions[func_name] = func;
