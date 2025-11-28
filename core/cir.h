@@ -28,31 +28,39 @@
 #endif
 
 #ifndef CIR_API
-#ifdef CIR_STATIC
-#define CIR_API
-#elif defined(_WIN32) || defined(_WIN64)
-#ifdef CIR_BUILD_DLL
-#define CIR_API __declspec(dllexport)
-#else
-#define CIR_API __declspec(dllimport)
-#endif
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#ifdef CIR_BUILD_DLL
-#define CIR_API __attribute__((visibility("default")))
-#else
-#define CIR_API
-#endif
-#else
-#define CIR_API
-#endif
+#   ifdef CIR_STATIC
+#       define CIR_API
+#   elif defined(_WIN32) || defined(_WIN64)
+#       ifdef CIR_BUILD_DLL
+#           define CIR_API __declspec(dllexport)
+#       else
+#           define CIR_API __declspec(dllimport)
+#       endif
+#   elif defined(__GNUC__) && __GNUC__ >= 4
+#       ifdef CIR_BUILD_DLL
+#           define CIR_API __attribute__((visibility("default")))
+#       else
+#           define CIR_API
+#       endif
+#   else
+#       define CIR_API
+#   endif
 #endif
 
 #ifndef CIR_INTERNAL
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define CIR_INTERNAL __attribute__((visibility("hidden")))
-#else
-#define CIR_INTERNAL
+#   if defined(__GNUC__) && __GNUC__ >= 4
+#       define CIR_INTERNAL __attribute__((visibility("hidden")))
+#   else
+#       define CIR_INTERNAL
+#   endif
 #endif
+
+#ifndef CIR_INLINE
+#   if defined(__GCC__) && __GCC__ >= 4
+#       define CIR_INLINE inline __attribute__((always_inline))
+#   else
+#       define CIR_INLINE inline
+#   endif
 #endif
 
 
@@ -205,24 +213,24 @@ CIR_API Word CIR::pop() {
     return top;
 }
 
-CIR_API void CIR::push(const Word &value) {
+CIR_INLINE CIR_API void CIR::push(const Word &value) {
     stack.push_back(value);
 }
 
-CIR_API void CIR::move(const Word &w, uint16_t i) {
+CIR_INLINE CIR_API void CIR::move(const Word &w, uint16_t i) {
     registers[i] = w;
 }
 
-CIR_API Word &CIR::getr(uint16_t i) {
+CIR_INLINE CIR_API Word &CIR::getr(uint16_t i) {
     return registers[i];
 }
 
-CIR_API Word &CIR::gets() {
+CIR_INLINE CIR_API Word &CIR::gets() {
     return stack.emplace_back();
 }
 
 // Get Operand
-Word &CIR::go(Word &w) {
+CIR_INLINE Word &CIR::go(Word &w) {
     if (w.has_flag(WordFlag::Register)) {
         return getr(w.as_int());
     } else {
@@ -231,7 +239,6 @@ Word &CIR::go(Word &w) {
 }
 
 // Uniformed Operands Syntax (dest, reg/imm, imm/reg)
-// TODO: make is_operable be dont used
 CIR_API void CIR::execute_op(Function &fn, Op op) {
     switch (op.type) {
         // (imm/reg, reg)
@@ -685,7 +692,7 @@ CIR_API void CIR::execute_function(const std::string &name) {
     }
 }
 
-CIR_API void CIR::check_externs() {
+CIR_INLINE CIR_API void CIR::check_externs() {
     for (const auto &req: program.required_externs) {
         if (!extern_functions.contains(req)) {
             throw std::runtime_error("Missing required external function: " + req);

@@ -1,3 +1,1 @@
-- Implemented Load, Store, Syscall ops
-- Removed locals because last commit we removed Local instructions and since we have registers like idk
-  it dont has a reason to have them
+- Added CIR_INLINE

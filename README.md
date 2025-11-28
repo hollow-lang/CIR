@@ -13,10 +13,9 @@
 - Readable Assembly
 
 # TODOS
-- TODO: implement CIR_INLINE and put to functions
-
 - TODO: update docs
 - TODO: preprocessor or include system
+- TODO: add more standard functions for io and other stuff
 - TODO: extend std to make it usable without custom functions in any project
 - TODO: implement Optimizer, which was removed because of a complete change of the instruction set
 - TODO: write a transpiler
