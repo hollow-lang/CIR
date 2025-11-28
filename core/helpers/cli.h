@@ -15,7 +15,8 @@
 
 namespace fs = std::filesystem;
 
-struct CliConfig {
+struct CliConfig
+{
     std::string program_name;
     std::string input_file;
     std::string output_file;
@@ -30,73 +31,93 @@ struct CliConfig {
     std::vector<DynLib> dls{};
 };
 
-class Logger {
+class Logger
+{
     int level;
 
 public:
-    explicit Logger(int log_level) : level(log_level) {
+    explicit Logger(int log_level) : level(log_level)
+    {
     }
 
-    void info(const std::string &msg) const {
-        if (level >= 1) {
+    void info(const std::string& msg) const
+    {
+        if (level >= 1)
+        {
             std::cout << "[INFO] " << msg << std::endl;
         }
     }
 
-    void debug(const std::string &msg) const {
-        if (level >= 2) {
+    void debug(const std::string& msg) const
+    {
+        if (level >= 2)
+        {
             std::cout << "[DEBUG] " << msg << std::endl;
         }
     }
 
-    static void error(const std::string &msg) {
+    static void error(const std::string& msg)
+    {
         std::cerr << "[ERROR] " << msg << std::endl;
     }
 
-    void success(const std::string &msg) const {
-        if (level >= 1) {
+    void success(const std::string& msg) const
+    {
+        if (level >= 1)
+        {
             std::cout << "[SUCCESS] " << msg << std::endl;
         }
     }
 };
 
-class CliTool {
+class CliTool
+{
     CliConfig config;
     Logger logger;
     CIR cir;
 
-    void print_stack() {
+    void print_stack()
+    {
         std::cout << "Stack Contents: " << std::endl;
 
-        auto &stack = cir.get_stack();
-        if (stack.empty()) {
+        auto& stack = cir.get_stack();
+        if (stack.empty())
+        {
             std::cout << "(empty)" << std::endl;
-        } else {
-            for (size_t i = 0; i < stack.size(); ++i) {
+        }
+        else
+        {
+            for (size_t i = 0; i < stack.size(); ++i)
+            {
                 std::cout << "[" << std::setw(2) << i << "] ";
                 stack[i].print();
-                std::cout << std::string(20 - std::min(20, (int) std::to_string(i).length()), ' ') << std::endl;
+                std::cout << std::string(20 - std::min(20, (int)std::to_string(i).length()), ' ') << std::endl;
             }
         }
     }
 
-    void print_registers() {
+    void print_registers()
+    {
         std::cout << "Register contents:" << std::endl;
 
-        for (int i = 0; i < std::min(8, Config::REGISTER_COUNT); ++i) {
+        for (int i = 0; i < std::min(8, Config::REGISTER_COUNT); ++i)
+        {
             std::cout << "  r" << i << ": ";
             cir.getr(i).print();
             std::cout << std::string(23, ' ') << std::endl;
         }
     }
 
-    bool validate_input_file() {
-        if (!fs::exists(config.input_file)) {
+    bool validate_input_file()
+    {
+        if (!fs::exists(config.input_file))
+        {
             logger.error("Input file does not exist: " + config.input_file);
             return false;
         }
 
-        if (!fs::is_regular_file(config.input_file)) {
+        if (!fs::is_regular_file(config.input_file))
+        {
             logger.error("Input path is not a file: " + config.input_file);
             return false;
         }
@@ -104,12 +125,15 @@ class CliTool {
         return true;
     }
 
-    bool compile() {
+    bool compile()
+    {
         logger.info("Compiling: " + config.input_file);
 
-        try {
+        try
+        {
             Assembler assembler;
-            if (!config.verbose) {
+            if (!config.verbose)
+            {
                 assembler.show_better_practice = false;
             }
             assembler.assemble_file(config.input_file);
@@ -121,22 +145,27 @@ class CliTool {
 
             auto file_size = fs::file_size(config.output_file);
             logger.success("Bytecode written to: " + config.output_file +
-                           " (" + std::to_string(file_size) + " bytes)");
+                " (" + std::to_string(file_size) + " bytes)");
 
             cir.load_program(assembler.get_program());
             return true;
-        } catch (const std::exception &e) {
+        }
+        catch (const std::exception& e)
+        {
             logger.error("Compilation failed: " + std::string(e.what()));
             return false;
         }
     }
 
-    bool load_bytecode() {
+    bool load_bytecode()
+    {
         logger.info("Loading bytecode: " + config.output_file);
 
-        try {
+        try
+        {
             std::ifstream f(config.output_file, std::ios::binary);
-            if (!f) {
+            if (!f)
+            {
                 logger.error("Cannot open bytecode file: " + config.output_file);
                 return false;
             }
@@ -151,16 +180,20 @@ class CliTool {
             cir.from_bytecode(bytecode);
             logger.success("Bytecode loaded successfully");
             return true;
-        } catch (const std::exception &e) {
+        }
+        catch (const std::exception& e)
+        {
             logger.error("Failed to load bytecode: " + std::string(e.what()));
             return false;
         }
     }
 
-    bool execute() {
+    bool execute()
+    {
         logger.info("Executing program");
 
-        try {
+        try
+        {
             auto start = std::chrono::high_resolution_clock::now();
 
             cir_std::init_std(cir);
@@ -170,52 +203,68 @@ class CliTool {
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
             logger.success("Program executed successfully");
-            if (config.benchmark) {
+            if (config.benchmark)
+            {
                 std::cout << "\nExecution time: " << duration.count() << " μs" << std::endl;
             }
 
-            if (config.show_stack) {
+            if (config.show_stack)
+            {
                 print_stack();
             }
 
-            if (config.show_registers) {
+            if (config.show_registers)
+            {
                 print_registers();
             }
 
             return true;
-        } catch (const std::exception &e) {
+        }
+        catch (const std::exception& e)
+        {
             logger.error("Execution failed: " + std::string(e.what()));
             return false;
         }
     }
 
 public:
-    explicit CliTool(const CliConfig &cfg) : config(cfg), logger(cfg.log_level) {
+    explicit CliTool(const CliConfig& cfg) : config(cfg), logger(cfg.log_level)
+    {
     }
 
-    int run() {
+    int run()
+    {
         logger.debug("Starting CLI tool");
 
-        if (!config.skip_compile) {
-            if (!validate_input_file()) {
+        if (!config.skip_compile)
+        {
+            if (!validate_input_file())
+            {
                 return 1;
             }
 
-            if (!compile()) {
+            if (!compile())
+            {
                 return 1;
             }
-        } else {
-            if (!load_bytecode()) {
+        }
+        else
+        {
+            if (!load_bytecode())
+            {
                 return 1;
             }
         }
 
-        if (!config.skip_run) {
-            for (auto &dl: config.dls) {
+        if (!config.skip_run)
+        {
+            for (auto& dl : config.dls)
+            {
                 auto init_lib_fn = dl.get<CIR_InitLibFn>("cir_init_lib");
                 init_lib_fn(cir);
             }
-            if (!execute()) {
+            if (!execute())
+            {
                 return 1;
             }
         }
@@ -224,16 +273,19 @@ public:
     }
 };
 
-class ArgParser {
+class ArgParser
+{
 private:
     CliConfig config;
 
-    static void print_version() {
+    static void print_version()
+    {
         std::cout << "CIR v" << Config::VERSION << std::endl;
         std::cout << "Copyright (c) 2025, " << Config::AUTHORS << std::endl;
     }
 
-    void print_help() {
+    void print_help()
+    {
         std::cout << "Usage: " << config.program_name << " <input_file> [options]\n" << std::endl;
         std::cout << "Options:" << std::endl;
         std::cout << "  -o, --output <file>      Specify output bytecode file (default: program.cbc)" << std::endl;
@@ -255,81 +307,123 @@ private:
     }
 
 public:
-    CliConfig parse(int argc, char **argv) {
-        if (argc < 1) {
+    CliConfig parse(int argc, char** argv)
+    {
+        if (argc < 1)
+        {
             throw std::runtime_error("Invalid argument count");
         }
 
         config.program_name = argv[0];
 
-        if (argc < 2) {
+        if (argc < 2)
+        {
             print_help();
             exit(0);
         }
 
         std::vector<std::string> args(argv + 1, argv + argc);
 
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto &arg = args[i];
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            const auto& arg = args[i];
 
-            if (arg == "-h" || arg == "--help") {
+            if (arg == "-h" || arg == "--help")
+            {
                 print_help();
                 exit(0);
-            } else if (arg == "--version") {
+            }
+            else if (arg == "--version")
+            {
                 print_version();
                 exit(0);
-            } else if (arg == "-d" || arg == "--dl") {
-                if (i + 1 >= args.size()) {
+            }
+            else if (arg == "-d" || arg == "--dl")
+            {
+                if (i + 1 >= args.size())
+                {
                     throw std::runtime_error("Missing value for " + arg);
                 }
                 DynLib dl;
-                if (!dl.load(args[++i])) {
+                if (!dl.load(args[++i]))
+                {
                     throw std::runtime_error("Failed to load dynamic library: " + args[i]);
                 }
 
                 config.dls.push_back(dl);
-            } else if (arg == "-v" || arg == "--verbose") {
+            }
+            else if (arg == "-v" || arg == "--verbose")
+            {
                 config.log_level = 2;
                 config.verbose = true;
-            } else if (arg == "-vv" || arg == "--debug") {
+            }
+            else if (arg == "-vv" || arg == "--debug")
+            {
                 config.log_level = 3;
                 config.verbose = true;
-            } else if (arg == "-q" || arg == "--quiet") {
+            }
+            else if (arg == "-q" || arg == "--quiet")
+            {
                 config.log_level = 0;
-            } else if (arg == "-c" || arg == "--no-compile") {
+            }
+            else if (arg == "-c" || arg == "--no-compile")
+            {
                 config.skip_compile = true;
-            } else if (arg == "-r" || arg == "--no-run") {
+            }
+            else if (arg == "-r" || arg == "--no-run")
+            {
                 config.skip_run = true;
-            } else if (arg == "-s" || arg == "--show-stack") {
+            }
+            else if (arg == "-s" || arg == "--show-stack")
+            {
                 config.show_stack = true;
-            } else if (arg == "-g" || arg == "--show-registers") {
+            }
+            else if (arg == "-g" || arg == "--show-registers")
+            {
                 config.show_registers = true;
-            } else if (arg == "-b" || arg == "--benchmark") {
+            }
+            else if (arg == "-b" || arg == "--benchmark")
+            {
                 config.benchmark = true;
-            } else if (arg == "-o" || arg == "--output") {
-                if (i + 1 >= args.size()) {
+            }
+            else if (arg == "-o" || arg == "--output")
+            {
+                if (i + 1 >= args.size())
+                {
                     throw std::runtime_error("Missing value for " + arg);
                 }
                 config.output_file = args[++i];
-            } else if (arg[0] == '-') {
+            }
+            else if (arg[0] == '-')
+            {
                 throw std::runtime_error("Unknown option: " + arg);
-            } else {
-                if (config.input_file.empty()) {
+            }
+            else
+            {
+                if (config.input_file.empty())
+                {
                     config.input_file = arg;
-                } else {
+                }
+                else
+                {
                     throw std::runtime_error("Multiple input files specified");
                 }
             }
         }
 
-        if (config.input_file.empty() && !config.skip_compile) {
+        if (config.input_file.empty() && !config.skip_compile)
+        {
             throw std::runtime_error("No input file specified");
         }
 
-        if (config.output_file.empty()) {
-            if (config.skip_compile) {
+        if (config.output_file.empty())
+        {
+            if (config.skip_compile)
+            {
                 config.output_file = "program.cbc";
-            } else {
+            }
+            else
+            {
                 fs::path input_path(config.input_file);
                 config.output_file = input_path.stem().string() + ".cbc";
             }

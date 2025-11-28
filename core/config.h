@@ -1,7 +1,8 @@
 #pragma once
 #include <limits>
 
-namespace Config {
+namespace Config
+{
     constexpr int REGISTER_COUNT = 256; // 256 Words = 2kb memory
     constexpr int STACK_SIZE = 1024 * 4; // 4kb
     constexpr int HEAP_SIZE = 1024 * 1024 * 64; // 64 kb

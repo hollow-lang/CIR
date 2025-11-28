@@ -10,55 +10,67 @@
 #include "core/std.h"
 #include "core/asm.h"
 
-std::string op_type_to_string(OpType type, Assembler &assembler) {
-    for (const auto &i: assembler.opcode_map) {
+std::string op_type_to_string(OpType type, Assembler& assembler)
+{
+    for (const auto& i : assembler.opcode_map)
+    {
         if (i.second.type == type) return i.first;
     }
     return "UnknownOpType";
 }
 
-class Debugger {
+class Debugger
+{
 private:
-    CIR &vm;
-    Program &program;
-    Assembler &assembler;
+    CIR& vm;
+    Program& program;
+    Assembler& assembler;
     std::set<size_t> breakpoints;
     bool step_mode = true;
 
-    void print_registers() const {
+    void print_registers() const
+    {
         std::cout << "\n=== Registers ===" << std::endl;
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 8; i++)
+        {
             std::cout << "r" << i << ": ";
             vm.getr(i).print();
             std::cout << std::endl;
         }
     }
 
-    void print_stack() const {
+    void print_stack() const
+    {
         std::cout << "\n=== Stack (top 5) ===" << std::endl;
-        auto &stack = vm.get_stack();
+        auto& stack = vm.get_stack();
         size_t start = stack.size() > 5 ? stack.size() - 5 : 0;
-        for (size_t i = start; i < stack.size(); i++) {
+        for (size_t i = start; i < stack.size(); i++)
+        {
             std::cout << "[" << i << "]: ";
             stack[i].print();
             std::cout << std::endl;
         }
-        if (stack.empty()) {
+        if (stack.empty())
+        {
             std::cout << "(empty)" << std::endl;
         }
     }
 
-    void print_current_instruction(Function &fn) const {
-        if (fn.co >= fn.ops.size()) {
+    void print_current_instruction(Function& fn) const
+    {
+        if (fn.co >= fn.ops.size())
+        {
             std::cout << "End of function" << std::endl;
             return;
         }
 
-        Op &op = fn.ops[fn.co];
+        Op& op = fn.ops[fn.co];
         std::cout << "\n[" << fn.co << "] " << op_type_to_string(op.type, assembler);
 
-        for (size_t i = 0; i < Config::OpArgCount; i++) {
-            if (op.args[i].type != WordType::Null) {
+        for (size_t i = 0; i < Config::OpArgCount; i++)
+        {
+            if (op.args[i].type != WordType::Null)
+            {
                 std::cout << " ";
                 op.args[i].print();
             }
@@ -66,7 +78,8 @@ private:
         std::cout << std::endl;
     }
 
-    static void print_help() {
+    static void print_help()
+    {
         std::cout << "\n=== Debugger Commands ===" << std::endl;
         std::cout << "n/next    - Execute next instruction" << std::endl;
         std::cout << "c/cont    - Continue until breakpoint" << std::endl;
@@ -79,7 +92,8 @@ private:
         std::cout << "q/quit    - Quit debugger" << std::endl;
     }
 
-    static std::string get_command() {
+    static std::string get_command()
+    {
         std::cout << "\n> ";
         std::string line;
         std::getline(std::cin, line);
@@ -87,15 +101,18 @@ private:
     }
 
 public:
-    Debugger(CIR &vm, Program &prog, Assembler &asm_)
-        : vm(vm), program(prog), assembler(asm_) {
+    Debugger(CIR& vm, Program& prog, Assembler& asm_)
+        : vm(vm), program(prog), assembler(asm_)
+    {
     }
 
-    void debug_function(const std::string &name) {
+    void debug_function(const std::string& name)
+    {
         program.state.cf = name;
         program.state.running = true;
 
-        if (!program.functions.contains(name)) {
+        if (!program.functions.contains(name))
+        {
             throw std::runtime_error("Function not found: " + name);
         }
         program.functions[name].co = 0;
@@ -103,11 +120,14 @@ public:
         std::cout << "\n=== Debugging function: " << name << " ===" << std::endl;
         print_help();
 
-        while (program.state.running) {
-            Function &fn = program.functions[program.state.cf];
+        while (program.state.running)
+        {
+            Function& fn = program.functions[program.state.cf];
 
-            if (fn.co >= fn.ops.size()) {
-                if (program.state.call_stack.empty()) {
+            if (fn.co >= fn.ops.size())
+            {
+                if (program.state.call_stack.empty())
+                {
                     program.state.running = false;
                     std::cout << "\nProgram ended." << std::endl;
                     break;
@@ -120,12 +140,14 @@ public:
                 continue;
             }
 
-            if (breakpoints.count(fn.co) && !step_mode) {
+            if (breakpoints.count(fn.co) && !step_mode)
+            {
                 std::cout << "\nBreakpoint hit at address " << fn.co << std::endl;
                 step_mode = true;
             }
 
-            if (step_mode) {
+            if (step_mode)
+            {
                 print_current_instruction(fn);
 
                 std::string cmd = get_command();
@@ -133,47 +155,73 @@ public:
                 std::string action;
                 iss >> action;
 
-                if (action == "n" || action == "next" || action.empty()) {
-                } else if (action == "c" || action == "cont") {
+                if (action == "n" || action == "next" || action.empty())
+                {
+                }
+                else if (action == "c" || action == "cont")
+                {
                     step_mode = false;
-                } else if (action == "r" || action == "regs") {
+                }
+                else if (action == "r" || action == "regs")
+                {
                     print_registers();
                     continue;
-                } else if (action == "s" || action == "stack") {
+                }
+                else if (action == "s" || action == "stack")
+                {
                     print_stack();
                     continue;
-                } else if (action == "b") {
+                }
+                else if (action == "b")
+                {
                     size_t addr;
-                    if (iss >> addr) {
+                    if (iss >> addr)
+                    {
                         breakpoints.insert(addr);
                         std::cout << "Breakpoint set at " << addr << std::endl;
-                    } else {
+                    }
+                    else
+                    {
                         std::cout << "Usage: b <address>" << std::endl;
                     }
                     continue;
-                } else if (action == "d") {
+                }
+                else if (action == "d")
+                {
                     size_t addr;
-                    if (iss >> addr) {
+                    if (iss >> addr)
+                    {
                         breakpoints.erase(addr);
                         std::cout << "Breakpoint removed at " << addr << std::endl;
-                    } else {
+                    }
+                    else
+                    {
                         std::cout << "Usage: d <address>" << std::endl;
                     }
                     continue;
-                } else if (action == "l" || action == "list") {
+                }
+                else if (action == "l" || action == "list")
+                {
                     std::cout << "Breakpoints: ";
-                    for (auto bp: breakpoints) {
+                    for (auto bp : breakpoints)
+                    {
                         std::cout << bp << " ";
                     }
                     std::cout << (breakpoints.empty() ? "(none)" : "") << std::endl;
                     continue;
-                } else if (action == "h" || action == "help") {
+                }
+                else if (action == "h" || action == "help")
+                {
                     print_help();
                     continue;
-                } else if (action == "q" || action == "quit") {
+                }
+                else if (action == "q" || action == "quit")
+                {
                     std::cout << "Exiting debugger." << std::endl;
                     return;
-                } else {
+                }
+                else
+                {
                     std::cout << "Unknown command. Type 'h' for help." << std::endl;
                     continue;
                 }
@@ -185,8 +233,10 @@ public:
     }
 };
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+int main(int argc, char* argv[])
+{
+    if (argc < 2)
+    {
         std::cerr << "Usage: debugger <bytecode>" << std::endl;
         return 1;
     }
@@ -195,7 +245,8 @@ int main(int argc, char *argv[]) {
     Assembler assembler;
 
     std::ifstream f(argv[1], std::ios::binary);
-    if (!f) {
+    if (!f)
+    {
         std::cerr << "Cannot open bytecode file: " << argv[1] << std::endl;
         return 1;
     }
@@ -208,7 +259,7 @@ int main(int argc, char *argv[]) {
     vm.from_bytecode(bytecode);
     cir_std::init_std(vm);
 
-    Program &prog = vm.get_program();
+    Program& prog = vm.get_program();
 
     Debugger debugger(vm, prog, assembler);
     debugger.debug_function("main");

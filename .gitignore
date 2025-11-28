@@ -2,3 +2,4 @@
 build
 example.cbc
 example.cas
+cmake-build-*
