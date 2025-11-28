@@ -93,8 +93,6 @@ enum class OpType : uint8_t {
     Call,
     CallExtern,
     Ret,
-    Syscall,
-    // TODO: no idea how to implement maybe passing value of r0 to it but how to pass args amount then? require r1-r3 to be filled?
     Cast,
     Alloc,
     Free,
@@ -652,59 +650,7 @@ CIR_API void CIR::execute_op(Function &fn, Op op) {
         }
         break;
 
-        // (syscall_id, arg_count (from r0 - rN)
-        case OpType::Syscall: {
-            Word &id_w = go(op.args[0]);
-            Word &arg_count_w = go(op.args[1]);
-            id_w.expect(WordType::Integer);
-            arg_count_w.expect(WordType::Integer);
-            int64_t id = id_w.as_int();
-            int64_t arg_count = arg_count_w.as_int();
-#ifdef __linux__
-// TODO: support other syscall arg types
-switch (arg_count) {
-case 0: {
-    syscall(id);
-}
-break;
-case 1: {
-    syscall(id, getr(0).as_int());
-}
-break;
-case 2: {
-    syscall(id, getr(0).as_int(), getr(1).as_int());
-}
-break;
-case 3: {
-    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int());
-}
-break;
-case 4: {
-    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int());
-}
-break;
-case 5: {
-    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int(),
-            getr(4).as_int());
-}
-break;
-case 6: {
-    syscall(id, getr(0).as_int(), getr(1).as_int(), getr(2).as_int(), getr(3).as_int(),
-            getr(4).as_int(), getr(5).as_int());
-}
-break;
-default: throw std::runtime_error("Syscall: unsupported argument count " + std::to_string(arg_count));
-}
-
-#elif defined(_WIN32) || defined(_WIN64)
-#error "implement syscall for windows" // TODO: write syscall emulation for windows
-#else
-#error "unknown platform for syscall implementation"
-#endif
-}
-        break;
-
-default : assert(0 && "wtf, this dont should happen.");
+        default : assert(0 && "wtf, this dont should happen.");
     }
 }
 
