@@ -36,6 +36,9 @@ add_executable(decbc tools/debugger/main.cpp)
 target_link_libraries(decbc PRIVATE cir_shared)
 target_include_directories(decbc PRIVATE ${CMAKE_SOURCE_DIR})
 
+add_executable(bfcas tools/bf/main.cpp)
+target_include_directories(bfcas PRIVATE ${CMAKE_SOURCE_DIR})
+
 add_subdirectory(examples/dl-imports EXCLUDE_FROM_ALL)
 
 add_custom_target(run
