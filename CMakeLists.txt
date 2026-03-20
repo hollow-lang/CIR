@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.16)
 project(cir CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -35,6 +35,9 @@ target_include_directories(discas PRIVATE ${CMAKE_SOURCE_DIR})
 add_executable(decbc tools/debugger/main.cpp)
 target_link_libraries(decbc PRIVATE cir_shared)
 target_include_directories(decbc PRIVATE ${CMAKE_SOURCE_DIR})
+
+add_executable(bfcas tools/bf/main.cpp)
+target_include_directories(bfcas PRIVATE ${CMAKE_SOURCE_DIR})
 
 add_subdirectory(examples/dl-imports EXCLUDE_FROM_ALL)
 

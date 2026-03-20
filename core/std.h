@@ -2,6 +2,7 @@
 #define STD_H
 
 #include <iostream>
+#include <cstdio>
 
 #include "cir.h"
 
@@ -13,6 +14,19 @@ namespace cir_std
     {
         cir.getr(0).print();
         std::cout << std::endl;
+    }
+
+    void putchar_fn(CIR& cir)
+    {
+        Word& r = cir.getr(0);
+        r.expect(WordType::Integer);
+        std::putchar(static_cast<int>(r.as_int()));
+    }
+
+    void getchar_fn(CIR& cir)
+    {
+        int c = std::getchar();
+        cir.move(Word::from_int(c == EOF ? -1 : c), 0);
     }
 
     namespace list
@@ -86,6 +100,8 @@ namespace cir_std
     void init_std(CIR& cir)
     {
         cir.set_extern_fn("std.print", print);
+        cir.set_extern_fn("std.putchar", putchar_fn);
+        cir.set_extern_fn("std.getchar", getchar_fn);
         list::register_list(cir);
     }
 }

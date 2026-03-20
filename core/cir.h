@@ -234,6 +234,7 @@ CIR_INLINE CIR_API void CIR::push(const Word& value)
 CIR_INLINE CIR_API void CIR::move(const Word& w, uint16_t i)
 {
     registers[i] = w;
+    registers[i].set_flag(WordFlag::Register);
 }
 
 CIR_INLINE CIR_API Word& CIR::getr(uint16_t i)
@@ -282,123 +283,112 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
     // (reg)
     case OpType::Pop:
         {
-            Word& r = getr(op.args[0].as_int());
-            r.expect_flag(WordFlag::Register);
-            r = pop();
+            op.args[0].expect_flag(WordFlag::Register);
+            move(pop(), static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     // (dest, imm/reg, imm/reg)
     case OpType::Add:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a + b;
+            move(a + b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     // (dest, imm/reg, imm/reg)
     case OpType::Sub:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a - b;
+            move(a - b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     // (dest, imm/reg, imm/reg)
     case OpType::Mul:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a * b;
+            move(a * b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     // (dest, imm/reg, imm/reg)
     case OpType::Div:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a / b;
+            move(a / b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::Mod:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a % b;
+            move(a % b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::And:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a & b;
+            move(a & b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::Or:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a | b;
+            move(a | b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     // TODO: this and following need implementation
     case OpType::Xor:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a ^ b;
+            move(a ^ b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::Not:
         {
-            Word& dest = getr(op.args[0].as_int());
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             a.expect(WordType::Integer);
-            dest = Word::from_int(~a.as_int());
+            move(Word::from_int(~a.as_int()), static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::Shl:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a << b;
+            move(a << b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
     case OpType::Shr:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
             Word& a = go(op.args[1]);
             Word& b = go(op.args[2]);
-            dest = a >> b;
+            move(a >> b, static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
@@ -478,31 +468,34 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
 
     case OpType::Inc:
         {
-            Word& r = go(op.args[0]);
-            r.expect_flag(WordFlag::Register);
-            ++r;
+            op.args[0].expect_flag(WordFlag::Register);
+            uint16_t idx = static_cast<uint16_t>(op.args[0].as_int());
+            Word incremented = ++registers[idx];
+            move(incremented, idx);
         }
         break;
 
     case OpType::Dec:
         {
-            Word& r = go(op.args[0]);
-            r.expect_flag(WordFlag::Register);
-            --r;
+            op.args[0].expect_flag(WordFlag::Register);
+            uint16_t idx = static_cast<uint16_t>(op.args[0].as_int());
+            Word decremented = --registers[idx];
+            move(decremented, idx);
         }
         break;
 
     case OpType::Neg:
         {
             op.args[0].expect_flag(WordFlag::Register);
-            Word& a = getr(op.args[0].as_int());
+            uint16_t idx = static_cast<uint16_t>(op.args[0].as_int());
+            Word& a = getr(idx);
             if (a.type == WordType::Integer)
             {
-                a = Word::from_int(-a.as_int());
+                move(Word::from_int(-a.as_int()), idx);
             }
             else if (a.type == WordType::Float)
             {
-                a = Word::from_float(-a.as_float());
+                move(Word::from_float(-a.as_float()), idx);
             }
             else
             {
@@ -513,8 +506,9 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
 
     case OpType::Cast:
         {
-            Word& dest = getr(op.args[1].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[1].expect_flag(WordFlag::Register);
+            uint16_t dest_idx = static_cast<uint16_t>(op.args[1].as_int());
+            Word& dest = getr(dest_idx);
 
             Word& target_type = go(op.args[0]);
             target_type.expect_flag(WordFlag::String);
@@ -525,11 +519,11 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
             {
                 if (strcmp(type_str, "float") == 0)
                 {
-                    dest = Word::from_float(static_cast<double>(dest.as_int()));
+                    move(Word::from_float(static_cast<double>(dest.as_int())), dest_idx);
                 }
                 else if (strcmp(type_str, "ptr") == 0)
                 {
-                    dest = Word::from_ptr(reinterpret_cast<void*>(dest.as_int()));
+                    move(Word::from_ptr(reinterpret_cast<void*>(dest.as_int())), dest_idx);
                 }
                 else if (strcmp(type_str, "int") != 0)
                 {
@@ -540,7 +534,7 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
             {
                 if (strcmp(type_str, "int") == 0)
                 {
-                    dest = Word::from_int(static_cast<int64_t>(dest.as_float()));
+                    move(Word::from_int(static_cast<int64_t>(dest.as_float())), dest_idx);
                 }
                 else if (strcmp(type_str, "float") != 0)
                 {
@@ -551,7 +545,7 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
             {
                 if (strcmp(type_str, "int") == 0)
                 {
-                    dest = Word::from_int(reinterpret_cast<int64_t>(dest.as_ptr()));
+                    move(Word::from_int(reinterpret_cast<int64_t>(dest.as_ptr())), dest_idx);
                 }
                 else if (strcmp(type_str, "ptr") != 0)
                 {
@@ -627,8 +621,8 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
     // (dest_reg, address, size)
     case OpType::Load:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
+            uint16_t dest_idx = static_cast<uint16_t>(op.args[0].as_int());
 
             Word& addr = go(op.args[1]);
             addr.expect(WordType::Pointer);
@@ -647,16 +641,21 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
             switch (byte_size)
             {
             case 1:
-                dest = Word::from_int(*static_cast<uint8_t*>(ptr));
+                move(Word::from_int(*static_cast<uint8_t*>(ptr)), dest_idx);
                 break;
             case 2:
-                dest = Word::from_int(*static_cast<uint16_t*>(ptr));
+                move(Word::from_int(*static_cast<uint16_t*>(ptr)), dest_idx);
                 break;
             case 4:
-                dest = Word::from_int(*static_cast<uint32_t*>(ptr));
+                move(Word::from_int(*static_cast<uint32_t*>(ptr)), dest_idx);
                 break;
             case 8:
-                std::memcpy(&dest.data, ptr, 8);
+                {
+                    Word w;
+                    std::memcpy(&w.data, ptr, 8);
+                    w.type = WordType::Integer;
+                    move(w, dest_idx);
+                }
                 break;
             default:
                 throw std::runtime_error("Load: unsupported size " + std::to_string(byte_size));
@@ -713,10 +712,9 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
     case OpType::Alloc:
         {
             op.args[0].expect_flag(WordFlag::Register);
-            Word& dest = getr(op.args[0].as_int());
             Word& x = go(op.args[1]);
             x.expect(WordType::Integer);
-            dest = Word::from_ptr(heap.allocate(x.as_int()));
+            move(Word::from_ptr(heap.allocate(x.as_int())), static_cast<uint16_t>(op.args[0].as_int()));
         }
         break;
 
@@ -728,8 +726,8 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
 
     case OpType::Lea:
         {
-            Word& dest = getr(op.args[0].as_int());
-            dest.expect_flag(WordFlag::Register);
+            op.args[0].expect_flag(WordFlag::Register);
+            uint16_t dest_idx = static_cast<uint16_t>(op.args[0].as_int());
 
             Word& base = go(op.args[1]);
             Word& offset = go(op.args[2]);
@@ -751,7 +749,7 @@ CIR_API void CIR::execute_op(Function& fn, Op op)
                 throw std::runtime_error("lea: base must be pointer or integer");
             }
 
-            dest = Word::from_ptr(address);
+            move(Word::from_ptr(address), dest_idx);
         }
         break;
 
